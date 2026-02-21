@@ -1,0 +1,778 @@
+--- change_password.php ---
+<?php
+session_start();
+include "db.php";
+
+if(!isset($_SESSION["user_id"])){
+    header("Location: login.php");
+    exit();
+}
+
+$user_id = $_SESSION["user_id"];
+$error = "";
+$success = "";
+
+if(isset($_POST["change"])){
+    $current = $_POST["current_password"];
+    $new = $_POST["new_password"];
+    $confirm = $_POST["confirm_password"];
+
+    // Fetch current password hash
+    $sql = "SELECT password_hash FROM dbo.users WHERE id = ?";
+    $stmt = sqlsrv_query($conn, $sql, [$user_id]);
+    $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+
+    if(!password_verify($current, $row["password_hash"])){
+        $error = "Current password is incorrect.";
+    } elseif($new !== $confirm){
+        $error = "New passwords do not match.";
+    } else {
+        $hash = password_hash($new, PASSWORD_DEFAULT);
+        $update_sql = "UPDATE dbo.users SET password_hash = ? WHERE id = ?";
+        $update_stmt = sqlsrv_query($conn, $update_sql, [$hash, $user_id]);
+        if($update_stmt){
+            $success = "Password updated successfully!";
+        } else {
+            $error = "Password update failed.";
+        }
+    }
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Change Password — Patient Portal</title>
+<link rel="stylesheet" href="assets/patient.css">
+</head>
+<body>
+<div class="patient-container">
+    <h2>Change Password</h2>
+
+    <?php if($error !== ""): ?>
+        <p class="error"><?php echo htmlspecialchars($error); ?></p>
+    <?php endif; ?>
+
+    <?php if($success !== ""): ?>
+        <p class="success"><?php echo htmlspecialchars($success); ?></p>
+    <?php endif; ?>
+
+    <form method="post">
+        <div class="form-group">
+            <label>Current Password</label>
+            <input type="password" name="current_password" required>
+        </div>
+        <div class="form-group">
+            <label>New Password</label>
+            <input type="password" name="new_password" required>
+        </div>
+        <div class="form-group">
+            <label>Confirm New Password</label>
+            <input type="password" name="confirm_password" required>
+        </div>
+        <button type="submit" name="change" class="update-btn">Change Password</button>
+    </form>
+
+    <div class="links">
+        <a href="patient_info.php">Back to Profile</a> | 
+        <a href="logout.php">Logout</a>
+    </div>
+</div>
+</body>
+</html>
+
+--- db.php ---
+<?php
+$serverName = "MAHI\\SQLEXPRESS";
+$connectionOptions = [
+    "Database" => "HMDS",
+    "Uid" => "hdms_user",
+    "PWD" => "1234",
+    "CharacterSet" => "UTF-8",
+];
+$conn = sqlsrv_connect($serverName, $connectionOptions);
+if ($conn === false) {
+    die("<div class='error'><b>DB Connection Failed:</b><br>" . print_r(sqlsrv_errors(), true) . "</div>");
+}
+
+--- index.php ---
+<?php
+session_start();
+include "db.php";
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PISD — Hospital Management System</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body class="bg-landing">
+<div class="container">
+
+  <nav class="nav">
+    <div class="brand">
+      <div class="logo">🏥</div>
+      <div class="brand-text">
+        <span class="brand-name">PISD</span>
+        <span class="brand-sub">Medical Center</span>
+      </div>
+    </div>
+
+    <div class="links">
+      <a href="#features">Services</a>
+      <a href="#about">About</a>
+    </div>
+
+    <div class="actions">
+      <?php if(isset($_SESSION["user_email"])): ?>
+        <span style="color: var(--primary-600); font-weight: 600; margin-right: 8px;"><?php echo htmlspecialchars($_SESSION["user_name"] ?? 'User'); ?></span>
+        <a class="btn" href="logout.php">Logout</a>
+      <?php else: ?>
+        <a class="btn" href="login.php">Login</a>
+        <a class="btn primary" href="register.php">Register</a>
+      <?php endif; ?>
+    </div>
+  </nav>
+
+  <div class="hero-section">
+    <div class="hero-content">
+      <span class="badge">Serving Health Since 2005</span>
+      
+      <h1>PISD Medical Center<br>Patient Management System</h1>
+      
+      <p class="hero-description">
+        Secure, integrated platform for managing patient records, doctor schedules, 
+        and appointments. Trusted by over 200 healthcare professionals.
+      </p>
+      
+      <div class="cta-buttons">
+        <?php if(isset($_SESSION["user_email"])): ?>
+          <a class="btn primary" href="#features">Dashboard</a>
+        <?php else: ?>
+          <a class="btn primary" href="register.php">Register</a>
+          <a class="btn" href="login.php">Login</a>
+        <?php endif; ?>
+      </div>
+      
+      <div class="stats">
+        <div class="stat-item">
+          <span class="stat-number">25,000+</span>
+          <span class="stat-label">Patients Yearly</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number">120+</span>
+          <span class="stat-label">Specialist Doctors</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number">24/7</span>
+          <span class="stat-label">Emergency Care</span>
+        </div>
+      </div>
+      
+      <?php if(isset($_SESSION["user_email"])): ?>
+        <div class="logged-in-badge">
+          Logged in as <?php echo htmlspecialchars($_SESSION["user_email"]); ?>
+        </div>
+      <?php endif; ?>
+    </div>
+    
+    <div class="image-collage">
+      <div class="collage-grid">
+        <div class="collage-item img1">
+          <img src="https://images.pexels.com/photos/247786/pexels-photo-247786.jpeg?auto=compress&cs=tinysrgb&w=600" alt="Modern hospital building">
+        </div>
+        <div class="collage-item img2">
+          <img src="https://images.pexels.com/photos/8376252/pexels-photo-8376252.jpeg?auto=compress&cs=tinysrgb&w=600" alt="Doctor with patient">
+        </div>
+        <div class="collage-item img3">
+          <img src="https://images.pexels.com/photos/7659564/pexels-photo-7659564.jpeg?auto=compress&cs=tinysrgb&w=600" alt="Medical equipment">
+        </div>
+        <div class="collage-item img4">
+          <img src="https://images.pexels.com/photos/7089632/pexels-photo-7089632.jpeg?auto=compress&cs=tinysrgb&w=600" alt="Surgery room">
+        </div>
+        <div class="collage-item img5">
+          <img src="https://images.pexels.com/photos/4386467/pexels-photo-4386467.jpeg?auto=compress&cs=tinysrgb&w=600" alt="Medical team">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="features" style="margin-top: 80px;">
+    <h2 class="section-title">Our Medical Services</h2>
+    <p class="section-subtitle">
+      Comprehensive healthcare management solutions for our medical staff
+    </p>
+    
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">📋</div>
+        <h3>Patient Records</h3>
+        <p>Secure, centralized patient information with instant access to medical history, prescriptions, and treatment plans.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">👨‍⚕️</div>
+        <h3>Doctor Scheduling</h3>
+        <p>Efficient duty scheduling for specialists across departments with real-time availability.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📅</div>
+        <h3>Appointment System</h3>
+        <p>Streamlined OPD appointment booking with automated reminders and queue management.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">💊</div>
+        <h3>Pharmacy Integration</h3>
+        <p>In-house pharmacy inventory management with prescription integration and expiry tracking.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔬</div>
+        <h3>Diagnostic Reports</h3>
+        <p>Digital lab report delivery directly to patient records with secure access.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">💰</div>
+        <h3>Billing System</h3>
+        <p>Integrated billing for consultations, diagnostics, and procedures.</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="about" style="margin-top: 80px; background: white; padding: 48px; border-radius: 32px; border: 1px solid var(--line);">
+    <h2 class="section-title" style="margin-bottom: 16px;">About PISD Medical Center</h2>
+    <p style="font-size: 18px; color: var(--muted); line-height: 1.7; margin-bottom: 24px;">
+      PISD Medical Center has been a trusted healthcare provider since 2005, committed to delivering quality medical care with compassion and excellence. We have grown into a multi-specialty hospital serving thousands of patients annually from our community and surrounding regions.
+    </p>
+    <p style="font-size: 18px; color: var(--muted); line-height: 1.7; margin-bottom: 24px;">
+      Our Patient Management System is designed to digitize and streamline hospital operations—from patient registration and doctor scheduling to pharmacy management and diagnostic reporting. This secure platform ensures that our medical staff can focus on what matters most: patient care.
+    </p>
+    <p style="font-size: 18px; color: var(--muted); line-height: 1.7;">
+      With 24/7 emergency services, 120+ specialist doctors, and modern facilities, PISD Medical Center continues its legacy of compassionate, excellence-driven healthcare.
+    </p>
+  </div>
+
+  <footer class="footer">
+    <p>© <?php echo date("Y"); ?> PISD Medical Center — Patient Management System. All rights reserved.</p>
+    <p style="margin-top: 8px; font-size: 13px;">123 Healthcare Avenue, Medical District, PISD 12345 | Tel: +1-555-789-0123</p>
+  </footer>
+
+</div>
+<script src="assets/app.js"></script>
+</body>
+</html>
+
+--- login.php ---
+<?php
+session_start();
+include "db.php";
+
+$error = "";
+
+if(isset($_POST["login"])) {
+    $email = trim($_POST["email"]);
+    $password = $_POST["password"];
+
+    if($email === "" || $password === "") {
+        $error = "Email and password are required.";
+    } else {
+        // Fix: cast email to NVARCHAR so it matches parameter type
+        $sql = "SELECT TOP 1 id, name, email, password_hash 
+                FROM dbo.users 
+                WHERE CAST(email AS NVARCHAR(120)) = ?";
+        $params = [$email];
+        $stmt = sqlsrv_query($conn, $sql, $params);
+
+        if($stmt === false) {
+            // For debugging, uncomment the next line
+            // die(print_r(sqlsrv_errors(), true));
+            $error = "Database query failed.";
+        } elseif ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+            if(password_verify($password, $row["password_hash"])) {
+                // Successful login → patient portal
+                $_SESSION["user_id"] = $row["id"];
+                $_SESSION["user_email"] = $row["email"];
+                $_SESSION["user_name"] = $row["name"];
+                header("Location: patient_home.php"); // patient portal
+                exit();
+            } else {
+                $error = "Incorrect password.";
+            }
+        } else {
+            $error = "Email not found.";
+        }
+    }
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login — PISD Medical Center</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body class="bg-auth">
+<div class="auth-wrapper">
+    <div class="auth-card">
+        <div class="auth-header">
+            <div class="auth-logo">🏥</div>
+            <h2>PISD</h2>
+            <p class="auth-sub">Medical Center</p>
+        </div>
+
+        <?php if($error !== ""): ?>
+            <div class="error-message">
+                <?php echo htmlspecialchars($error); ?>
+            </div>
+        <?php endif; ?>
+
+        <form method="post">
+            <div class="form-group">
+                <label class="form-label">Email</label>
+                <input 
+                    type="email" 
+                    name="email" 
+                    class="form-field" 
+                    placeholder="Email"
+                    value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <div class="password-header">
+                    <label class="form-label">Password</label>
+                    <a href="#" class="forgot-link">Forgot password?</a>
+                </div>
+                <div class="password-wrapper">
+                    <input 
+                        id="login-password" 
+                        type="password" 
+                        name="password" 
+                        class="password-field" 
+                        placeholder="Password"
+                        required
+                    >
+                    <button 
+                        type="button" 
+                        class="toggle-btn" 
+                        onclick="togglePassword(this, 'login-password')"
+                    >Show</button>
+                </div>
+            </div>
+
+            <button type="submit" name="login" class="auth-button">
+                Sign In
+            </button>
+
+            <div class="auth-footer">
+                Don't have an account?
+                <a href="register.php">Sign up Now</a>
+            </div>
+            
+            <a href="index.php" class="back-home">← Back to Home</a>
+        </form>
+    </div>
+</div>
+<script src="assets/app.js"></script>
+</body>
+</html>
+
+--- logout.php ---
+<?php
+session_start();
+session_destroy();
+header("Location: index.php");
+exit();
+
+--- patient_home.php ---
+<?php
+session_start();
+include "db.php";
+
+if (!isset($_SESSION["user_id"])) {
+    header("Location: login.php");
+    exit;
+}
+
+$user_id = $_SESSION["user_id"];
+
+// Get patient info
+$stmt = sqlsrv_query($conn, "SELECT * FROM patients WHERE patient_id=?", [$user_id]);
+$patient = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+
+// Get user email dynamically
+$stmt2 = sqlsrv_query($conn, "SELECT email FROM users WHERE id=?", [$user_id]);
+$user = sqlsrv_fetch_array($stmt2, SQLSRV_FETCH_ASSOC);
+
+if (!$user) {
+    die("User not found.");
+}
+$user_email = $user['email'];
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Patient Home — PISD</title>
+    <link rel="stylesheet" href="assets/patient.css">
+    <script src="assets/patient.js" defer></script>
+</head>
+<body>
+<div class="container">
+
+    <!-- Navigation Bar -->
+    <nav class="nav">
+        <div class="logo">🏥</div>
+        <div class="actions">
+            <span class="user-name"><?php echo htmlspecialchars($patient['full_name'] ?? $user_email); ?></span>
+            <a class="btn" href="logout.php">Logout</a>
+        </div>
+    </nav>
+
+    <div style="display:flex; gap:32px; margin-top:32px;">
+
+        <!-- Sidebar -->
+        <div style="width:250px; background:white; padding:24px; border-radius:16px; box-shadow:0 8px 24px rgba(10,44,62,.08);">
+            <h3 style="margin-bottom:16px;">Patient Dashboard</h3>
+            <ul style="list-style:none; padding:0;">
+                <li style="margin-bottom:12px;">
+                    <a class="btn small-btn" href="patient_info.php">
+                        <?php echo $patient ? "Update Patient Info" : "Add Patient Info"; ?>
+                    </a>
+                </li>
+                <li style="margin-bottom:12px;">
+                    <a class="btn small-btn" href="appointments.php">Appointments</a>
+                </li>
+                <li style="margin-bottom:12px;">
+                    <a class="btn small-btn" href="search_doctors.php">Search Doctors</a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Main Content -->
+        <div style="flex:1;">
+            <h2 class="section-title">Welcome, <?php echo htmlspecialchars($patient['full_name'] ?? $user_email); ?></h2>
+
+            <?php if($patient): ?>
+                <p>Your patient information is available. Update anytime from the sidebar.</p>
+                <div class="feature-card" style="margin-top:24px;">
+                    <?php
+                    <h3>Patient Info Summary</h3>
+                    <p><strong>Email:</strong> <?php echo htmlspecialchars($user_email); ?></p>
+                    <p><strong>DOB:</strong> 
+                        <?php 
+                        if (!empty($patient['date_of_birth'])) {
+                            echo $patient['date_of_birth'] instanceof DateTime ? $patient['date_of_birth']->format('Y-m-d') : htmlspecialchars($patient['date_of_birth']);
+                        } else { 
+                            echo 'N/A'; 
+                        }
+                        ?>
+                    </p>
+                    <p><strong>Gender:</strong> <?php echo htmlspecialchars($patient['gender'] ?? 'N/A'); ?></p>
+                    <p><strong>Phone:</strong> <?php echo htmlspecialchars($patient['phone'] ?? 'N/A'); ?></p>
+                    <p><strong>Address:</strong> <?php echo htmlspecialchars($patient['address'] ?? 'N/A'); ?></p>
+                    <p><strong>Marital Status:</strong> <?php echo htmlspecialchars($patient['marital_status'] ?? 'N/A'); ?></p>
+                </div>
+            <?php else: ?>
+                <p>You have not added your patient information yet. Click the sidebar button to add details.</p>
+            <?php endif; ?>
+        </div>
+
+    </div>
+</div>
+</body>
+</html>
+
+--- patient_info.php ---
+<?php
+session_start();
+include "db.php";
+
+if (!isset($_SESSION["user_id"])) {
+    header("Location: login.php");
+    exit;
+}
+
+$user_id = $_SESSION["user_id"];
+$success = '';
+$error = '';
+
+// Get patient info
+$stmt = sqlsrv_query($conn, "SELECT * FROM patients WHERE patient_id=?", [$user_id]);
+$patient = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+
+// Get user email dynamically
+$stmt2 = sqlsrv_query($conn, "SELECT email FROM users WHERE id=?", [$user_id]);
+$user = sqlsrv_fetch_array($stmt2, SQLSRV_FETCH_ASSOC);
+
+if (!$user) {
+    die("User not found.");
+}
+$user_email = $user['email'];
+
+// Form submission
+if ($_SERVER["REQUEST_METHOD"] === "POST") {
+    $full_name = $_POST['full_name'];
+    $dob = $_POST['dob'];
+    $gender = $_POST['gender'];
+    $phone = $_POST['phone'];
+    $address = $_POST['address'];
+    $marital_status = $_POST['marital_status'];
+
+    if ($patient) {
+        $sqlUpdate = "UPDATE patients SET full_name=?, date_of_birth=?, gender=?, phone=?, address=?, marital_status=?, updated_at=GETDATE() WHERE patient_id=?";
+        sqlsrv_query($conn, $sqlUpdate, [$full_name, $dob, $gender, $phone, $address, $marital_status, $user_id]);
+        $success = "Patient info updated successfully.";
+    } else {
+        $sqlInsert = "INSERT INTO patients (patient_id, full_name, date_of_birth, gender, phone, address, marital_status) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        sqlsrv_query($conn, $sqlInsert, [$user_id, $full_name, $dob, $gender, $phone, $address, $marital_status]);
+        $success = "Patient info added successfully.";
+    }
+
+    // Refresh patient info
+    $stmt = sqlsrv_query($conn, "SELECT * FROM patients WHERE patient_id=?", [$user_id]);
+    $patient = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+}
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Patient Info — PISD</title>
+    <link rel="stylesheet" href="assets/patient.css">
+    <script src="assets/patient.js" defer></script>
+</head>
+<body>
+<div class="container">
+    <nav class="nav">
+        <div class="logo">🏥</div>
+        <div class="actions">
+            <span class="user-name"><?php echo htmlspecialchars($patient['full_name'] ?? $user_email); ?></span>
+            <a class="btn" href="patient_home.php">Back</a>
+            <a class="btn" href="logout.php">Logout</a>
+        </div>
+    </nav>
+
+    <h2 class="section-title"><?php echo $patient ? "Update" : "Add"; ?> Patient Info</h2>
+
+    <?php if($error): ?>
+        <p class="error"><?php echo $error; ?></p>
+    <?php endif; ?>
+    <?php if($success): ?>
+        <p class="success"><?php echo $success; ?></p>
+    <?php endif; ?>
+
+    <form method="post" style="max-width:600px;">
+        <label>Full Name</label>
+        <input class="form-field" type="text" name="full_name" value="<?php echo htmlspecialchars($patient['full_name'] ?? ''); ?>" required>
+
+        <label>Email</label>
+        <input class="form-field" type="email" value="<?php echo htmlspecialchars($user_email); ?>" readonly>
+
+        <label>Date of Birth</label>
+        <input class="form-field" type="date" name="dob" value="<?php 
+            if (!empty($patient['date_of_birth'])) {
+                echo $patient['date_of_birth'] instanceof DateTime ? $patient['date_of_birth']->format('Y-m-d') : htmlspecialchars($patient['date_of_birth']);
+            } 
+        ?>">
+
+        <label>Gender</label>
+        <select class="form-field" name="gender">
+            <option value="">Select</option>
+            <option value="Male" <?php if(isset($patient['gender']) && $patient['gender']=="Male") echo "selected"; ?>>Male</option>
+            <option value="Female" <?php if(isset($patient['gender']) && $patient['gender']=="Female") echo "selected"; ?>>Female</option>
+            <option value="Other" <?php if(isset($patient['gender']) && $patient['gender']=="Other") echo "selected"; ?>>Other</option>
+        </select>
+
+        <label>Phone</label>
+        <input class="form-field" type="text" name="phone" value="<?php echo htmlspecialchars($patient['phone'] ?? ''); ?>">
+
+        <label>Address</label>
+        <input class="form-field" type="text" name="address" value="<?php echo htmlspecialchars($patient['address'] ?? ''); ?>">
+
+        <label>Marital Status</label>
+        <select class="form-field" name="marital_status">
+            <option value="">Select</option>
+            <option value="Single" <?php if(isset($patient['marital_status']) && $patient['marital_status']=="Single") echo "selected"; ?>>Single</option>
+            <option value="Married" <?php if(isset($patient['marital_status']) && $patient['marital_status']=="Married") echo "selected"; ?>>Married</option>
+            <option value="Other" <?php if(isset($patient['marital_status']) && $patient['marital_status']=="Other") echo "selected"; ?>>Other</option>
+        </select>
+
+        <label>Update Password</label>
+        <input class="form-field" type="password" placeholder="Not functional yet" disabled>
+
+        <button class="btn" type="submit"><?php echo $patient ? "Update" : "Add"; ?> Info</button>
+    </form>
+</div>
+</body>
+</html>
+
+--- register.php ---
+<?php
+session_start();
+include "db.php";
+
+$error = "";
+$success = "";
+
+if(isset($_POST["register"])) {
+  $name = trim($_POST["name"]);
+  $email = trim($_POST["email"]);
+  $password = $_POST["password"];
+  $confirm_password = $_POST["confirm_password"];
+
+  if($name === "" || $email === "" || $password === "" || $confirm_password === "") {
+    $error = "All fields are required.";
+  } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    $error = "Please enter a valid email address.";
+  } elseif (strlen($password) < 8) {
+    $error = "Password must be at least 8 characters.";
+  } elseif (!preg_match("/[A-Z]/", $password)) {
+    $error = "Password must contain at least one uppercase letter.";
+  } elseif (!preg_match("/[a-z]/", $password)) {
+    $error = "Password must contain at least one lowercase letter.";
+  } elseif (!preg_match("/[0-9]/", $password)) {
+    $error = "Password must contain at least one number.";
+  } elseif (!preg_match("/[!@#$%^&*]/", $password)) {
+    $error = "Password must contain at least one special character (!@#$%^&*).";
+  } elseif ($password !== $confirm_password) {
+    $error = "Passwords do not match.";
+  } else {
+    $check_sql = "SELECT TOP 1 id FROM dbo.users WHERE email = ?";
+    $check_stmt = sqlsrv_query($conn, $check_sql, [$email]);
+    
+    if ($check_stmt && sqlsrv_has_rows($check_stmt)) {
+      $error = "This email is already registered. Please login.";
+    } else {
+      $hash = password_hash($password, PASSWORD_DEFAULT);
+      $sql = "INSERT INTO dbo.users (name, email, password_hash) VALUES (?, ?, ?)";
+      $stmt = sqlsrv_query($conn, $sql, [$name, $email, $hash]);
+
+      if($stmt) {
+        $success = "Account created successfully! Redirecting to login...";
+        header("refresh:2; url=login.php");
+      } else {
+        $error = "Registration failed. Please try again.";
+      }
+    }
+  }
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register — PISD Medical Center</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body class="bg-auth">
+  <div class="auth-wrapper">
+    <div class="auth-card">
+      <div class="auth-header">
+        <div class="auth-logo">🏥</div>
+        <h2>PISD</h2>
+        <p class="auth-sub">Medical Center</p>
+      </div>
+
+      <?php if($error !== ""): ?>
+        <div class="error-message">
+          <?php echo htmlspecialchars($error); ?>
+        </div>
+      <?php endif; ?>
+      
+      <?php if($success !== ""): ?>
+        <div style="margin-bottom: 20px; padding: 12px 16px; border-radius: 12px; background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.2); color: #166534; font-size: 14px; font-weight: 600;">
+          <?php echo htmlspecialchars($success); ?>
+        </div>
+      <?php endif; ?>
+
+      <form method="post">
+        <div class="form-group">
+          <label class="form-label">Full Name</label>
+          <input 
+            type="text" 
+            name="name" 
+            class="form-field" 
+            placeholder="Full Name"
+            value="<?php echo isset($_POST['name']) ? htmlspecialchars($_POST['name']) : ''; ?>"
+            required
+          >
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input 
+            type="email" 
+            name="email" 
+            class="form-field" 
+            placeholder="Email"
+            value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>"
+            required
+          >
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <div class="password-wrapper">
+            <input 
+              id="register-password" 
+              type="password" 
+              name="password" 
+              class="password-field" 
+              placeholder="Password"
+              required
+            >
+            <button 
+              type="button" 
+              class="toggle-btn" 
+              onclick="togglePassword(this, 'register-password')"
+            >Show</button>
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">Confirm Password</label>
+          <div class="password-wrapper">
+            <input 
+              id="register-confirm-password" 
+              type="password" 
+              name="confirm_password" 
+              class="password-field" 
+              placeholder="Confirm Password"
+              required
+            >
+            <button 
+              type="button" 
+              class="toggle-btn" 
+              onclick="togglePassword(this, 'register-confirm-password')"
+            >Show</button>
+          </div>
+        </div>
+
+        <button type="submit" name="register" class="auth-button">
+          Sign Up
+        </button>
+
+        <div class="auth-footer">
+          Already have an account?
+          <a href="login.php">Login Now</a>
+        </div>
+        
+        <a href="index.php" class="back-home">← Back to Home</a>
+      </form>
+    </div>
+  </div>
+  <script src="assets/app.js"></script>
+</body>
+</html>
+
+--- test connection.php ---
+<?php
+include "db.php";
+echo "DB Connected";
+
