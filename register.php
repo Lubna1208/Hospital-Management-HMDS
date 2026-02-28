@@ -35,7 +35,7 @@ if(isset($_POST["register"])) {
       $error = "This email is already registered. Please login.";
     } else {
       $hash = password_hash($password, PASSWORD_DEFAULT);
-      $sql = "INSERT INTO dbo.users (name, email, password_hash) VALUES (?, ?, ?)";
+      $sql = "INSERT INTO dbo.users (name, email, password_hash, role) VALUES (?, ?, ?, 'patient')";
       $stmt = sqlsrv_query($conn, $sql, [$name, $email, $hash]);
 
       if($stmt) {
