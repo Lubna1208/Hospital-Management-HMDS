@@ -5,31 +5,39 @@ include "db.php";
 $error = "";
 
 if(isset($_POST["login"])) {
-    $email = trim($_POST["email"]);
-    $password = $_POST["password"];
+    $email = trim($_POST["email"] ?? "");
+    $password = $_POST["password"] ?? "";
 
     if($email === "" || $password === "") {
         $error = "Email and password are required.";
     } else {
-        // Fix: cast email to NVARCHAR so it matches parameter type
-        $sql = "SELECT TOP 1 id, name, email, password_hash 
-                FROM dbo.users 
+        $sql = "SELECT TOP 1 id, name, email, password_hash, role
+                FROM dbo.users
                 WHERE CAST(email AS NVARCHAR(120)) = ?";
-        $params = [$email];
-        $stmt = sqlsrv_query($conn, $sql, $params);
+        $stmt = sqlsrv_query($conn, $sql, [$email]);
 
         if($stmt === false) {
-            // For debugging, uncomment the next line
-            // die(print_r(sqlsrv_errors(), true));
             $error = "Database query failed.";
         } elseif ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
             if(password_verify($password, $row["password_hash"])) {
-                // Successful login → patient portal
-                $_SESSION["user_id"] = $row["id"];
+
+                $_SESSION["user_id"]    = (int)$row["id"];
                 $_SESSION["user_email"] = $row["email"];
-                $_SESSION["user_name"] = $row["name"];
-                header("Location: patient_home.php"); // patient portal
-                exit();
+                $_SESSION["user_name"]  = $row["name"];
+                $_SESSION["role"]       = $row["role"];
+
+                // Redirect based on role
+                if ($row["role"] === "admin") {
+                    header("Location: admin_dashboard.php");
+                    exit();
+                } elseif ($row["role"] === "doctor") {
+                    header("Location: doctor_dashboard.php");
+                    exit();
+                } else {
+                    header("Location: patient_home.php");
+                    exit();
+                }
+
             } else {
                 $error = "Incorrect password.";
             }
@@ -65,10 +73,10 @@ if(isset($_POST["login"])) {
         <form method="post">
             <div class="form-group">
                 <label class="form-label">Email</label>
-                <input 
-                    type="email" 
-                    name="email" 
-                    class="form-field" 
+                <input
+                    type="email"
+                    name="email"
+                    class="form-field"
                     placeholder="Email"
                     value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>"
                     required
@@ -81,17 +89,17 @@ if(isset($_POST["login"])) {
                     <a href="#" class="forgot-link">Forgot password?</a>
                 </div>
                 <div class="password-wrapper">
-                    <input 
-                        id="login-password" 
-                        type="password" 
-                        name="password" 
-                        class="password-field" 
+                    <input
+                        id="login-password"
+                        type="password"
+                        name="password"
+                        class="password-field"
                         placeholder="Password"
                         required
                     >
-                    <button 
-                        type="button" 
-                        class="toggle-btn" 
+                    <button
+                        type="button"
+                        class="toggle-btn"
                         onclick="togglePassword(this, 'login-password')"
                     >Show</button>
                 </div>
@@ -105,7 +113,7 @@ if(isset($_POST["login"])) {
                 Don't have an account?
                 <a href="register.php">Sign up Now</a>
             </div>
-            
+
             <a href="index.php" class="back-home">← Back to Home</a>
         </form>
     </div>
