@@ -1,11 +1,11 @@
 <?php
 
-$serverName = "DESKTOP-7OHN20R\\SQLEXPRESS";
+$serverName = "MAHI\\SQLEXPRESS";
 
 $connectionOptions = [
     "Database" => "HMDS",
-    "Uid" => "hmds_user",
-    "PWD" => "DataC2",
+    "Uid" => "hdms_user",
+    "PWD" => "1234",
     "CharacterSet" => "UTF-8",
 ];
 
