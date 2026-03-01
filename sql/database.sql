@@ -7,6 +7,7 @@ GO
 USE HMDS;
 GO
 
+-- Users table
 IF OBJECT_ID('dbo.users', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.users (
@@ -29,6 +30,7 @@ BEGIN
 END
 GO
 
+-- Patients table
 IF OBJECT_ID('dbo.patients', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.patients (
@@ -46,13 +48,6 @@ BEGIN
             ON DELETE CASCADE
     );
 END
-GO
-
-SELECT * FROM dbo.users;
-SELECT * FROM dbo.patients;
-GO
-
-USE HMDS;
 GO
 
 -- Doctors table
@@ -73,7 +68,32 @@ BEGIN
 END
 GO
 
--- enforce role values
+-- Appointments table
+IF OBJECT_ID('dbo.appointments', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.appointments (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        patient_id INT NOT NULL,
+        doctor_id INT NOT NULL,
+        appointment_date DATE NOT NULL,
+        appointment_time TIME NOT NULL,
+        serial_no INT NOT NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'Pending',
+        created_at DATETIME DEFAULT GETDATE(),
+        updated_at DATETIME DEFAULT GETDATE(),
+
+        CONSTRAINT FK_Appointments_Patients FOREIGN KEY (patient_id)
+            REFERENCES dbo.patients(id)
+            ON DELETE CASCADE,
+
+        CONSTRAINT FK_Appointments_Doctors FOREIGN KEY (doctor_id)
+            REFERENCES dbo.doctors(id)
+            ON DELETE CASCADE
+    );
+END
+GO
+
+-- Enforce role values
 IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_users_role')
 BEGIN
   ALTER TABLE dbo.users
@@ -89,5 +109,9 @@ BEGIN
 END
 GO
 
+-- Optional: show current doctors and appointments
 SELECT id, name, email, role FROM dbo.users WHERE role='doctor';
 SELECT * FROM dbo.doctors;
+SELECT * FROM dbo.patients;
+SELECT * FROM dbo.appointments;
+GO
