@@ -1,11 +1,11 @@
 <?php
 
-$serverName = "DESKTOP-7OHN20R\\SQLEXPRESS";
+$serverName = "TARIN\SQLEXPRESS";
 
 $connectionOptions = [
     "Database" => "HMDS",
-    "Uid" => "hmds_user",
-    "PWD" => "DataC2",
+    //"Uid" => "hmds_user",
+    //"PWD" => "DataC2",
     "CharacterSet" => "UTF-8"
 ];
 
