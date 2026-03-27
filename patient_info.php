@@ -86,12 +86,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         <input class="form-field" type="text" name="full_name" value="<?php echo htmlspecialchars($patient['PatientName'] ?? ''); ?>" required>
 
         <label>Date of Birth</label>
-        <label>Date of Birth</label>
-<input class="form-field" type="date" name="dob" value="<?php 
-    if (!empty($patient['DateOfBirth']) && $patient['DateOfBirth'] instanceof DateTime) {
-        echo $patient['DateOfBirth']->format('Y-m-d');
-    } 
-?>" min="1900-01-01" max="<?php echo date('Y-m-d', strtotime('-14 years')); ?>" title="You must be at least 14 years old" required>
+        <input class="form-field" type="date" name="dob" 
+               value="<?php 
+                   if (!empty($patient['DateOfBirth']) && $patient['DateOfBirth'] instanceof DateTime) {
+                       echo $patient['DateOfBirth']->format('Y-m-d');
+                   }
+               ?>" 
+               min="<?php echo $minDob; ?>" 
+               max="<?php echo $maxDob; ?>" 
+               required
+        >
 
         <label>Gender</label>
         <select class="form-field" name="gender" required>

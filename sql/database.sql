@@ -111,11 +111,7 @@ GO
 
 -- Optional: show current doctors and appointments
 SELECT id, name, email, role FROM dbo.users WHERE role='doctor';
-
-
 SELECT * FROM dbo.doctors;
 SELECT * FROM dbo.patients;
 SELECT * FROM dbo.appointments;
-SELECT * FROM dbo.users;
-SELECT * FROM dbo.patients;
 GO
