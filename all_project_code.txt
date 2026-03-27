@@ -1,0 +1,285 @@
+[--- login.php ---
+[login.php](login.php)
+
+--- login.php ---
+<?php
+session_start();
+include "db.php";
+
+$error = "";
+
+if(isset($_POST["login"])) {
+	$email = trim($_POST["email"] ?? "");
+	$password = $_POST["password"] ?? "";
+
+	if($email === "" || $password === "") {
+		$error = "Email and password are required.";
+	} else {
+		$sql = "SELECT TOP 1 id, name, email, password_hash, role
+				FROM dbo.users
+				WHERE CAST(email AS NVARCHAR(120)) = ?";
+		$stmt = sqlsrv_query($conn, $sql, [$email]);
+
+		if($stmt === false) {
+			$error = "Database query failed.";
+		} elseif ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+			if(password_verify($password, $row["password_hash"])) {
+
+				$_SESSION["user_id"]    = (int)$row["id"];
+				$_SESSION["user_email"] = $row["email"];
+				$_SESSION["user_name"]  = $row["name"];
+				$_SESSION["role"]       = $row["role"];
+
+				// Redirect based on role
+				if ($row["role"] === "admin") {
+					header("Location: admin_dashboard.php");
+					exit();
+				} elseif ($row["role"] === "doctor") {
+					header("Location: doctor_dashboard.php");
+					exit();
+				} else {
+					header("Location: patient_home.php");
+					exit();
+				}
+
+			} else {
+				$error = "Incorrect password.";
+			}
+		} else {
+			$error = "Email not found.";
+		}
+	}
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login — PISD Medical Center</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body class="bg-auth">
+<div class="auth-wrapper">
+	<div class="auth-card">
+		<div class="auth-header">
+			<div class="auth-logo">🏥</div>
+			<h2>PISD</h2>
+			<p class="auth-sub">Medical Center</p>
+		</div>
+
+		<?php if($error !== ""): ?>
+			<div class="error-message">
+				<?php echo htmlspecialchars($error); ?>
+			</div>
+		<?php endif; ?>
+
+		<form method="post">
+			<div class="form-group">
+				<label class="form-label">Email</label>
+				<input
+					type="email"
+					name="email"
+					class="form-field"
+					placeholder="Email"
+					value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>"
+					required
+				>
+			</div>
+
+			<div class="form-group">
+				<div class="password-header">
+					<label class="form-label">Password</label>
+					<a href="#" class="forgot-link">Forgot password?</a>
+				</div>
+				<div class="password-wrapper">
+					<input
+						id="login-password"
+						type="password"
+						name="password"
+						class="password-field"
+						placeholder="Password"
+						required
+					>
+					<button
+						type="button"
+						class="toggle-btn"
+						onclick="togglePassword(this, 'login-password')"
+					>Show</button>
+				</div>
+			</div>
+
+			<button type="submit" name="login" class="auth-button">
+				Sign In
+			</button>
+
+			<div class="auth-footer">
+				Don't have an account?
+				<a href="register.php">Sign up Now</a>
+			</div>
+
+			<a href="index.php" class="back-home">← Back to Home</a>
+		</form>
+	</div>
+</div>
+<script src="assets/app.js"></script>
+</body>
+</html>
+
+--- sql/database.sql ---
+IF DB_ID('HMDS') IS NULL
+BEGIN
+	CREATE DATABASE HMDS;
+END
+GO
+
+USE HMDS;
+GO
+
+IF OBJECT_ID('dbo.users', 'U') IS NULL
+BEGIN
+	CREATE TABLE dbo.users (
+		id INT IDENTITY(1,1) PRIMARY KEY,
+		name VARCHAR(100) NOT NULL,
+		email VARCHAR(120) NOT NULL UNIQUE,
+		password_hash VARCHAR(255) NOT NULL,
+		role VARCHAR(20) NOT NULL DEFAULT 'patient',
+		created_at DATETIME DEFAULT GETDATE()
+	);
+END
+ELSE
+BEGIN
+	IF COL_LENGTH('dbo.users', 'role') IS NULL
+	BEGIN
+		ALTER TABLE dbo.users
+		ADD role VARCHAR(20) NOT NULL 
+		CONSTRAINT DF_users_role DEFAULT 'patient';
+	END
+END
+GO
+
+IF OBJECT_ID('dbo.patients', 'U') IS NULL
+BEGIN
+	CREATE TABLE dbo.patients (
+		id INT PRIMARY KEY,
+		PatientName VARCHAR(100) NULL,
+		DateOfBirth DATE NULL,
+		Gender VARCHAR(20) NULL,
+		Phone VARCHAR(20) NULL,
+		Address VARCHAR(255) NULL,
+		MaritalStatus VARCHAR(50) NULL,
+		created_at DATETIME DEFAULT GETDATE(),
+		updated_at DATETIME DEFAULT GETDATE(),
+		CONSTRAINT FK_Patients_Users FOREIGN KEY (id)
+			REFERENCES dbo.users(id)
+			ON DELETE CASCADE
+	);
+END
+GO
+
+SELECT * FROM dbo.users;
+SELECT * FROM dbo.patients;
+GO
+
+USE HMDS;
+GO
+
+-- Doctors table
+IF OBJECT_ID('dbo.doctors', 'U') IS NULL
+BEGIN
+	CREATE TABLE dbo.doctors (
+		id INT PRIMARY KEY,              -- same as users.id
+		full_name VARCHAR(100) NULL,
+		department VARCHAR(100) NULL,
+		phone VARCHAR(20) NULL,
+		room_no VARCHAR(20) NULL,
+		created_at DATETIME DEFAULT GETDATE(),
+		updated_at DATETIME DEFAULT GETDATE(),
+		CONSTRAINT FK_Doctors_Users FOREIGN KEY (id)
+			REFERENCES dbo.users(id)
+			ON DELETE CASCADE
+	);
+END
+GO
+
+-- enforce role values
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_users_role')
+BEGIN
+  ALTER TABLE dbo.users
+  ADD CONSTRAINT CK_users_role CHECK (role IN ('patient','doctor','admin'));
+END
+GO
+
+-- Creating admin user (ONLY ONCE)
+IF NOT EXISTS (SELECT 1 FROM dbo.users WHERE email = 'admin@hmds.com')
+BEGIN
+	INSERT INTO dbo.users (name, email, password_hash, role)
+	VALUES ('Admin', 'admin@hmds.com', '$2y$10$uV80.u6SOMkt74wKLHb1cu3VE/NLCke3ibcFoySqbOI29NnDqhjOe', 'admin');
+END
+GO
+
+SELECT id, name, email, role FROM dbo.users WHERE role='doctor';
+SELECT * FROM dbo.doctors;
+
+...existing code...
+--- login.php ---
+[login.php](login.php)
+
+
+[sql/database.sql](sql/database.sql)
+
+--- index.php ---
+[index.php](index.php)
+
+--- doctor_profile.php ---
+[doctor_profile.php](doctor_profile.php)
+
+--- doctor_dashboard.php ---
+[doctor_dashboard.php](doctor_dashboard.php)
+
+--- db.php ---
+[db.php](db.php)
+
+--- change_password.php ---
+[change_password.php](change_password.php)
+
+--- all_codes.txt ---
+[all_codes.txt](all_codes.txt)
+
+--- admin_doctors.php ---
+[admin_doctors.php](admin_doctors.php)
+
+--- admin_dashboard.php ---
+[admin_dashboard.php](admin_dashboard.php)
+
+--- logout.php ---
+[logout.php](logout.php)
+
+--- patient_home.php ---
+[patient_home.php](patient_home.php)
+
+--- patient_info.php ---
+[patient_info.php](patient_info.php)
+
+--- register.php ---
+[register.php](register.php)
+
+--- test connection.php ---
+[test connection.php](test%20connection.php)
+
+--- assets/style.css ---
+[assets/style.css](assets/style.css)
+
+--- assets/patient.js ---
+[assets/patient.js](assets/patient.js)
+
+--- assets/patient.css ---
+[assets/patient.css](assets/patient.css)
+
+--- assets/app.js ---
+[assets/app.js](assets/app.js)
+
+
+--- END OF ALL PROJECT FILES ---
+
+Each section above contains a link to the corresponding file in your workspace. Open any link to view the full code for that file. If you want the literal code content for each file in a single text file, let me know and I will generate it for you.
