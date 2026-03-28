@@ -69,6 +69,9 @@ $user_name = $user['name'];
                 <li style="margin-bottom:12px;">
                     <a class="btn small-btn" href="search_doctors.php">Search Doctors</a>
                 </li>
+                <li style="margin-bottom:12px;">
+                    <a class="btn small-btn" href="vaccines.php">Vaccines</a>
+                </li>
             </ul>
         </div>
 

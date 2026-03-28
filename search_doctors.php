@@ -19,6 +19,8 @@ $departments = [
     "Dermatology",
     "Gynecology",
     "ENT",
+    "Surgery",
+    "Medicine",
     "Oncology",
     "Urology",
     "Psychiatry",
