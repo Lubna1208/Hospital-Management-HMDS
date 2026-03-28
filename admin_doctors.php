@@ -135,6 +135,9 @@ $listStmt = sqlsrv_query($conn, $listSql);
               <li style="margin-bottom:12px;">
                   <a class="btn small-btn" href="admin_doctors.php">Manage Doctors</a>
               </li>
+              <li style="margin-bottom:12px;">
+                  <a class="btn small-btn" href="admin_vaccines.php">Manage Vaccines</a>
+              </li>
           </ul>
       </div>
 

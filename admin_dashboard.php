@@ -31,12 +31,15 @@ if (!isset($_SESSION["user_id"]) || ($_SESSION["role"] ?? "") !== "admin") {
               <li style="margin-bottom:12px;">
                   <a class="btn small-btn" href="admin_doctors.php">Manage Doctors</a>
               </li>
+              <li style="margin-bottom:12px;">
+                  <a class="btn small-btn" href="admin_vaccines.php">Manage Vaccines</a>
+              </li>
           </ul>
       </div>
 
       <div style="flex:1;">
           <h2 class="section-title">Welcome, Admin</h2>
-          <p>From here you can add doctors and delete doctors.</p>
+          <p>From here you can manage doctors and maintain the Vaccine module for the rest of HMDS.</p>
       </div>
   </div>
 
