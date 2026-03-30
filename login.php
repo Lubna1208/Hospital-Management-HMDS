@@ -20,22 +20,26 @@ if(isset($_POST["login"])) {
             $error = "Database query failed.";
         } elseif ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
             if(password_verify($password, $row["password_hash"])) {
-
-                $_SESSION["user_id"]    = (int)$row["id"];
-                $_SESSION["user_email"] = $row["email"];
-                $_SESSION["user_name"]  = $row["name"];
-                $_SESSION["role"]       = $row["role"];
-
-                // Redirect based on role
-                if ($row["role"] === "admin") {
-                    header("Location: admin_dashboard.php");
-                    exit();
-                } elseif ($row["role"] === "doctor") {
-                    header("Location: doctor_dashboard.php");
-                    exit();
+                if ($row["role"] === "patient" && !ensure_patient_record($conn, $row["id"])) {
+                    $error = "Unable to load patient profile.";
                 } else {
-                    header("Location: patient_home.php");
-                    exit();
+
+                    $_SESSION["user_id"]    = (int)$row["id"];
+                    $_SESSION["user_email"] = $row["email"];
+                    $_SESSION["user_name"]  = $row["name"];
+                    $_SESSION["role"]       = $row["role"];
+
+                    // Redirect based on role
+                    if ($row["role"] === "admin") {
+                        header("Location: admin_dashboard.php");
+                        exit();
+                    } elseif ($row["role"] === "doctor") {
+                        header("Location: doctor_dashboard.php");
+                        exit();
+                    } else {
+                        header("Location: patient_home.php");
+                        exit();
+                    }
                 }
 
             } else {

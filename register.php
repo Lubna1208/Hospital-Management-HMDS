@@ -39,8 +39,15 @@ if(isset($_POST["register"])) {
       $stmt = sqlsrv_query($conn, $sql, [$name, $email, $hash]);
 
       if($stmt) {
-        $success = "Account created successfully! Redirecting to login...";
-        header("refresh:2; url=login.php");
+        $userStmt = sqlsrv_query($conn, "SELECT TOP 1 id FROM dbo.users WHERE email = ?", [$email]);
+        $userRow = $userStmt ? sqlsrv_fetch_array($userStmt, SQLSRV_FETCH_ASSOC) : null;
+
+        if (!$userRow || !ensure_patient_record($conn, $userRow["id"])) {
+          $error = "Account created, but patient profile initialization failed. Please contact support.";
+        } else {
+          $success = "Account created successfully! Redirecting to login...";
+          header("refresh:2; url=login.php");
+        }
       } else {
         $error = "Registration failed. Please try again.";
       }

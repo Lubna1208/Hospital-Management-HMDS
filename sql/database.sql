@@ -181,3 +181,23 @@ SELECT * FROM dbo.vaccines;
 SELECT * FROM dbo.vaccine_billing_history;
 GO
 
+CREATE TABLE doctor_schedule (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    doctor_id INT NOT NULL,
+    schedule_date DATE NOT NULL,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    max_patients INT NOT NULL,
+    created_at DATETIME DEFAULT GETDATE()
+);
+
+ALTER TABLE appointments
+ADD schedule_id INT;
+
+-- 1. Add day_of_week column
+ALTER TABLE doctor_schedule
+ADD day_of_week INT;
+
+-- 2. Remove schedule_date (not needed anymore)
+ALTER TABLE doctor_schedule
+DROP COLUMN schedule_date;

@@ -2,7 +2,7 @@
 session_start();
 include "db.php";
 
-if (!isset($_SESSION["user_id"]) || ($_SESSION["role"] ?? "patient") !== "patient") {
+if (!isset($_SESSION["user_id"]) || ($_SESSION["role"] ?? "") !== "patient") {
     header("Location: login.php");
     exit;
 }
@@ -10,44 +10,77 @@ if (!isset($_SESSION["user_id"]) || ($_SESSION["role"] ?? "patient") !== "patien
 $patient_id = $_SESSION["user_id"];
 
 if(isset($_POST['submit'])){
-    $doctor_id = $_POST['doctor_id'];
-    $appointment_date = $_POST['appointment_date'];
-    $appointment_time = $_POST['appointment_time'];
+if (!ensure_patient_record($conn, $patient_id)) {
+    $_SESSION['appointment_error'] = "Patient profile is unavailable. Please try again.";
+    header("Location: appointments.php");
+    exit;
+}
 
-    // 1️⃣ Ensure patient exists
-    $stmtPatient = sqlsrv_query($conn, "SELECT id FROM patients WHERE id = ?", [$patient_id]);
-    $patient = sqlsrv_fetch_array($stmtPatient, SQLSRV_FETCH_ASSOC);
+$doctor_id = $_POST['doctor_id'];
+$date = $_POST['appointment_date'];
 
-    if(!$patient){
-        // Auto-create patient with minimal info (name from session)
-        $patientName = $_SESSION['user_name'] ?? 'Unknown';
-        $sqlInsertPatient = "INSERT INTO patients (id, PatientName) VALUES (?, ?)";
-        $stmtInsertPatient = sqlsrv_query($conn, $sqlInsertPatient, [$patient_id, $patientName]);
+$day = date('N', strtotime($date));
 
-        if(!$stmtInsertPatient){
-            die("Error creating patient: " . print_r(sqlsrv_errors(), true));
-        }
-    }
+/* ❌ Prevent multiple bookings same day */
+$sql_check = "SELECT COUNT(*) as cnt FROM appointments WHERE patient_id=? AND appointment_date=?";
+$stmt_check = sqlsrv_query($conn, $sql_check, [$patient_id, $date]);
+$row_check = sqlsrv_fetch_array($stmt_check, SQLSRV_FETCH_ASSOC);
 
-    // 2️⃣ Calculate serial number for doctor per day
-    $sqlCount = "SELECT COUNT(*) AS cnt FROM appointments WHERE doctor_id=? AND appointment_date=?";
-    $stmtCount = sqlsrv_query($conn, $sqlCount, [$doctor_id, $appointment_date]);
-    $rowCount = sqlsrv_fetch_array($stmtCount, SQLSRV_FETCH_ASSOC);
-    $serial_no = ($rowCount['cnt'] ?? 0) + 1;
+if(($row_check['cnt'] ?? 0) > 0){
+    $_SESSION['appointment_error'] = "You already have an appointment on this day";
+    header("Location: appointments.php");
+    exit;
+}
 
-    // 3️⃣ Insert appointment
-    $sqlInsert = "INSERT INTO appointments (doctor_id, patient_id, appointment_date, appointment_time, serial_no, status)
-                  VALUES (?, ?, ?, ?, ?, 'Pending')";
-    $paramsInsert = [$doctor_id, $patient_id, $appointment_date, $appointment_time, $serial_no];
-    $stmtInsert = sqlsrv_query($conn, $sqlInsert, $paramsInsert);
+/* ✅ Check doctor schedule */
+$sql = "SELECT * FROM doctor_schedule WHERE doctor_id=? AND day_of_week=?";
+$stmt = sqlsrv_query($conn,$sql,[$doctor_id,$day]);
 
-    if($stmtInsert){
-        // Redirect back with success
-        $_SESSION['appointment_success'] = "Appointment booked successfully.";
-        header("Location: appointments.php");
-        exit;
-    } else {
-        die("Error booking appointment: " . print_r(sqlsrv_errors(), true));
-    }
+$schedule = sqlsrv_fetch_array($stmt,SQLSRV_FETCH_ASSOC);
+
+if(!$schedule){
+    $_SESSION['appointment_error']="Doctor is unavailable on selected day";
+    header("Location: appointments.php");
+    exit;
+}
+
+/* ✅ Count existing patients */
+$sql2="SELECT COUNT(*) as cnt FROM appointments WHERE doctor_id=? AND appointment_date=?";
+$stmt2=sqlsrv_query($conn,$sql2,[$doctor_id,$date]);
+$row=sqlsrv_fetch_array($stmt2,SQLSRV_FETCH_ASSOC);
+
+$serial=($row['cnt']??0)+1;
+
+if($serial>$schedule['max_patients']){
+    $_SESSION['appointment_error']="Maximum patients reached for this day";
+    header("Location: appointments.php");
+    exit;
+}
+
+/* ✅ Time calculation */
+$start=strtotime($schedule['start_time']->format('H:i:s'));
+$end=strtotime($schedule['end_time']->format('H:i:s'));
+
+$interval=($end-$start)/$schedule['max_patients'];
+
+$time=date("H:i:s",$start+($serial-1)*$interval);
+
+/* ✅ Insert */
+$sql3="INSERT INTO appointments
+(doctor_id,patient_id,appointment_date,appointment_time,serial_no,status)
+VALUES(?,?,?,?,?,'Pending')";
+
+$params=[$doctor_id,$patient_id,$date,$time,$serial];
+
+$ok=sqlsrv_query($conn,$sql3,$params);
+
+if($ok){
+$_SESSION['appointment_success']="Booked successfully. Serial No: $serial";
+header("Location: appointments.php");
+exit;
+}else{
+die(print_r(sqlsrv_errors(),true));
+}
+
 }
 ?>
