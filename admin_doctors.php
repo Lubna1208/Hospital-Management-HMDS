@@ -9,6 +9,7 @@ if (!isset($_SESSION["user_id"]) || ($_SESSION["role"] ?? "") !== "admin") {
 
 $msg = "";
 $error = "";
+$departments = get_departments($conn);
 
 /* Create Doctor */
 if (isset($_POST["add_doctor"])) {
@@ -16,12 +17,14 @@ if (isset($_POST["add_doctor"])) {
     $email = trim($_POST["email"] ?? "");
     $password = $_POST["password"] ?? "";
 
-    $department = trim($_POST["department"] ?? "");
+    $department_id = (int)($_POST["department_id"] ?? 0);
     $phone = trim($_POST["phone"] ?? "");
     $room_no = trim($_POST["room_no"] ?? "");
 
     if ($name === "" || $email === "" || $password === "") {
         $error = "Doctor name, email and password are required.";
+    } elseif ($department_id > 0 && !department_exists($departments, $department_id)) {
+        $error = "Please select a valid department.";
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = "Please enter a valid email.";
     } else {
@@ -57,10 +60,11 @@ if (isset($_POST["add_doctor"])) {
                     $error = "Failed to get new doctor id.";
                 } else {
                     $insertDoc = "
-                        INSERT INTO dbo.doctors (id, full_name, department, phone, room_no)
+                        INSERT INTO dbo.doctors (id, full_name, department_id, phone, room_no)
                         VALUES (?, ?, ?, ?, ?)
                     ";
-                    $ok2 = sqlsrv_query($conn, $insertDoc, [$newId, $name, $department, $phone, $room_no]);
+                    $departmentValue = $department_id > 0 ? $department_id : null;
+                    $ok2 = sqlsrv_query($conn, $insertDoc, [$newId, $name, $departmentValue, $phone, $room_no]);
 
                     if ($ok2 === false) {
                         sqlsrv_rollback($conn);
@@ -99,9 +103,10 @@ if (isset($_POST["delete_doctor"])) {
 
 /* List Doctors */
 $listSql = "
-    SELECT u.id, u.name, u.email, d.department, d.phone, d.room_no
+    SELECT u.id, u.name, u.email, dep.department_name AS department, d.phone, d.room_no
     FROM dbo.users u
     LEFT JOIN dbo.doctors d ON d.id = u.id
+    LEFT JOIN dbo.departments dep ON dep.department_id = d.department_id
     WHERE u.role = 'doctor'
     ORDER BY u.id DESC
 ";
@@ -163,7 +168,14 @@ $listStmt = sqlsrv_query($conn, $listSql);
                 <input class="form-field" name="name" placeholder="Doctor Name" required>
                 <input class="form-field" name="email" placeholder="Doctor Email" required>
                 <input class="form-field" name="password" placeholder="Temporary Password" required>
-                <input class="form-field" name="department" placeholder="Department (optional)">
+                <select class="form-field" name="department_id">
+                  <option value="">Select Department</option>
+                  <?php foreach ($departments as $department): ?>
+                    <option value="<?php echo (int)$department['department_id']; ?>">
+                      <?php echo htmlspecialchars($department['department_name']); ?>
+                    </option>
+                  <?php endforeach; ?>
+                </select>
                 <input class="form-field" name="phone" placeholder="Phone (optional)">
                 <input class="form-field" name="room_no" placeholder="Room No (optional)">
               </div>

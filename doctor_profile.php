@@ -10,35 +10,51 @@ if (!isset($_SESSION["user_id"]) || ($_SESSION["role"] ?? "") !== "doctor") {
 $doctor_id = (int)$_SESSION["user_id"];
 $msg = "";
 $error = "";
+$departments = get_departments($conn);
 
 /* Save Profile */
 if (isset($_POST["save_profile"])) {
     $full_name = trim($_POST["full_name"] ?? "");
-    $department = trim($_POST["department"] ?? "");
+    $department_id = (int)($_POST["department_id"] ?? 0);
     $phone = trim($_POST["phone"] ?? "");
     $room_no = trim($_POST["room_no"] ?? "");
 
-    // Check if doctor row exists
-    $existsStmt = sqlsrv_query($conn, "SELECT TOP 1 id FROM dbo.doctors WHERE id = ?", [$doctor_id]);
-    $exists = $existsStmt && sqlsrv_has_rows($existsStmt);
-
-    if ($exists) {
-        $sql = "UPDATE dbo.doctors
-                SET full_name=?, department=?, phone=?, room_no=?, updated_at=GETDATE()
-                WHERE id=?";
-        $ok = sqlsrv_query($conn, $sql, [$full_name, $department, $phone, $room_no, $doctor_id]);
-    } else {
-        $sql = "INSERT INTO dbo.doctors (id, full_name, department, phone, room_no)
-                VALUES (?, ?, ?, ?, ?)";
-        $ok = sqlsrv_query($conn, $sql, [$doctor_id, $full_name, $department, $phone, $room_no]);
+    if ($department_id > 0 && !department_exists($departments, $department_id)) {
+        $error = "Please select a valid department.";
     }
 
-    if ($ok) $msg = "Profile saved successfully.";
-    else $error = "Failed to save profile.";
+    if ($error === "") {
+        // Check if doctor row exists
+        $existsStmt = sqlsrv_query($conn, "SELECT TOP 1 id FROM dbo.doctors WHERE id = ?", [$doctor_id]);
+        $exists = $existsStmt && sqlsrv_has_rows($existsStmt);
+
+        if ($exists) {
+            $sql = "UPDATE dbo.doctors
+                    SET full_name=?, department_id=?, phone=?, room_no=?, updated_at=GETDATE()
+                    WHERE id=?";
+            $departmentValue = $department_id > 0 ? $department_id : null;
+            $ok = sqlsrv_query($conn, $sql, [$full_name, $departmentValue, $phone, $room_no, $doctor_id]);
+        } else {
+            $sql = "INSERT INTO dbo.doctors (id, full_name, department_id, phone, room_no)
+                    VALUES (?, ?, ?, ?, ?)";
+            $departmentValue = $department_id > 0 ? $department_id : null;
+            $ok = sqlsrv_query($conn, $sql, [$doctor_id, $full_name, $departmentValue, $phone, $room_no]);
+        }
+
+        if ($ok) $msg = "Profile saved successfully.";
+        else $error = "Failed to save profile.";
+    }
 }
 
 /* Load Profile */
-$loadStmt = sqlsrv_query($conn, "SELECT TOP 1 * FROM dbo.doctors WHERE id = ?", [$doctor_id]);
+$loadStmt = sqlsrv_query(
+    $conn,
+    "SELECT TOP 1 d.*, dep.department_name
+     FROM dbo.doctors d
+     LEFT JOIN dbo.departments dep ON dep.department_id = d.department_id
+     WHERE d.id = ?",
+    [$doctor_id]
+);
 $doctor = $loadStmt ? sqlsrv_fetch_array($loadStmt, SQLSRV_FETCH_ASSOC) : null;
 
 // Also load email/name from users
@@ -121,8 +137,15 @@ $userRow = $userStmt ? sqlsrv_fetch_array($userStmt, SQLSRV_FETCH_ASSOC) : null;
               <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
                 <input class="form-field" name="full_name" placeholder="Full Name"
                   value="<?php echo htmlspecialchars($doctor["full_name"] ?? ($userRow["name"] ?? "")); ?>">
-                <input class="form-field" name="department" placeholder="Department"
-                  value="<?php echo htmlspecialchars($doctor["department"] ?? ""); ?>">
+                <select class="form-field" name="department_id">
+                  <option value="">Select Department</option>
+                  <?php foreach ($departments as $department): ?>
+                    <option value="<?php echo (int)$department['department_id']; ?>"
+                      <?php echo ((int)($doctor["department_id"] ?? 0) === (int)$department['department_id']) ? "selected" : ""; ?>>
+                      <?php echo htmlspecialchars($department['department_name']); ?>
+                    </option>
+                  <?php endforeach; ?>
+                </select>
                 <input class="form-field" name="phone" placeholder="Phone"
                   value="<?php echo htmlspecialchars($doctor["phone"] ?? ""); ?>">
                 <input class="form-field" name="room_no" placeholder="Room No"

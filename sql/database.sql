@@ -201,3 +201,135 @@ ADD day_of_week INT;
 -- 2. Remove schedule_date (not needed anymore)
 ALTER TABLE doctor_schedule
 DROP COLUMN schedule_date;
+
+IF OBJECT_ID('dbo.departments', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.departments (
+        department_id INT IDENTITY(1,1) PRIMARY KEY,
+        department_name VARCHAR(100) NOT NULL,
+        created_at DATETIME NOT NULL DEFAULT GETDATE()
+    );
+END
+GO
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.key_constraints
+    WHERE name = 'UQ_departments_department_name'
+)
+BEGIN
+    ALTER TABLE dbo.departments
+    ADD CONSTRAINT UQ_departments_department_name UNIQUE (department_name);
+END
+GO
+
+INSERT INTO dbo.departments (department_name)
+SELECT v.department_name
+FROM (VALUES
+    ('Cardiology'),
+    ('Neurology'),
+    ('Orthopedics'),
+    ('Pediatrics'),
+    ('Dermatology'),
+    ('Gynecology'),
+    ('ENT'),
+    ('Surgery'),
+    ('Medicine'),
+    ('Oncology'),
+    ('Urology'),
+    ('Psychiatry'),
+    ('General Medicine'),
+    ('Radiology'),
+    ('Anesthesiology'),
+    ('Emergency')
+) AS v(department_name)
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM dbo.departments d
+    WHERE d.department_name = v.department_name
+);
+GO
+
+IF COL_LENGTH('dbo.doctors', 'department_id') IS NULL
+BEGIN
+    ALTER TABLE dbo.doctors
+    ADD department_id INT NULL;
+END
+GO
+
+IF COL_LENGTH('dbo.doctors', 'department') IS NOT NULL
+BEGIN
+    INSERT INTO dbo.departments (department_name)
+    SELECT DISTINCT LTRIM(RTRIM(d.department))
+    FROM dbo.doctors d
+    WHERE d.department IS NOT NULL
+      AND LTRIM(RTRIM(d.department)) <> ''
+      AND NOT EXISTS (
+          SELECT 1
+          FROM dbo.departments dep
+          WHERE dep.department_name = LTRIM(RTRIM(d.department))
+      );
+
+    UPDATE d
+    SET d.department_id = dep.department_id
+    FROM dbo.doctors d
+    INNER JOIN dbo.departments dep
+        ON dep.department_name = LTRIM(RTRIM(d.department))
+    WHERE d.department_id IS NULL
+      AND d.department IS NOT NULL
+      AND LTRIM(RTRIM(d.department)) <> '';
+END
+GO
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.foreign_keys
+    WHERE name = 'FK_Doctors_Departments'
+)
+BEGIN
+    ALTER TABLE dbo.doctors
+    ADD CONSTRAINT FK_Doctors_Departments
+        FOREIGN KEY (department_id)
+        REFERENCES dbo.departments(department_id);
+END
+GO
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = 'IX_doctors_department_id'
+      AND object_id = OBJECT_ID('dbo.doctors')
+)
+BEGIN
+    CREATE INDEX IX_doctors_department_id
+    ON dbo.doctors(department_id);
+END
+GO
+
+SELECT department_id, department_name
+FROM dbo.departments
+ORDER BY department_name;
+
+SELECT d.id, d.full_name, d.department_id, dep.department_name
+FROM dbo.doctors d
+LEFT JOIN dbo.departments dep ON dep.department_id = d.department_id
+ORDER BY d.id;
+
+SELECT *
+FROM dbo.departments
+WHERE department_name IN ('Neurology', 'Neurologist');
+
+DELETE FROM dbo.departments
+WHERE department_name = 'Neurologist';
+GO
+
+SELECT department_id, department_name
+FROM dbo.departments
+ORDER BY department_name;
+
+IF COL_LENGTH('dbo.doctors', 'department') IS NOT NULL
+BEGIN
+    ALTER TABLE dbo.doctors
+    DROP COLUMN department;
+END
+GO

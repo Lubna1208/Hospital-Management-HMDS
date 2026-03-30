@@ -8,31 +8,13 @@ if (!isset($_SESSION["user_id"]) || ($_SESSION["role"] ?? "") !== "patient") {
 }
 
 $search_name = trim($_GET['search_name'] ?? '');
-$filter_department = trim($_GET['department'] ?? '');
-
-// Predefined hospital departments
-$departments = [
-    "Cardiology",
-    "Neurology",
-    "Orthopedics",
-    "Pediatrics",
-    "Dermatology",
-    "Gynecology",
-    "ENT",
-    "Surgery",
-    "Medicine",
-    "Oncology",
-    "Urology",
-    "Psychiatry",
-    "General Medicine",
-    "Radiology",
-    "Anesthesiology",
-    "Emergency"
-];
+$filter_department_id = (int)($_GET['department_id'] ?? 0);
+$departments = get_departments($conn);
 
 // Fetch doctors based on search or filter
-$sql = "SELECT d.full_name, d.department, d.phone 
+$sql = "SELECT d.full_name, dep.department_name AS department, d.phone 
         FROM dbo.doctors d
+        LEFT JOIN dbo.departments dep ON dep.department_id = d.department_id
         INNER JOIN dbo.users u ON u.id = d.id
         WHERE 1=1 ";
 $params = [];
@@ -42,9 +24,9 @@ if ($search_name) {
     $params[] = "%" . $search_name . "%";
 }
 
-if ($filter_department) {
-    $sql .= " AND d.department = ? ";
-    $params[] = $filter_department;
+if ($filter_department_id > 0) {
+    $sql .= " AND d.department_id = ? ";
+    $params[] = $filter_department_id;
 }
 
 $sql .= " ORDER BY d.full_name";
@@ -80,12 +62,12 @@ while ($row = sqlsrv_fetch_array($docStmt, SQLSRV_FETCH_ASSOC)) {
     <div style="width:250px; background:white; padding:24px; border-radius:16px; box-shadow:0 8px 24px rgba(10,44,62,.08);">
         <h3 style="margin-bottom:16px;">Filter by Department</h3>
         <form method="get">
-            <select class="form-field" name="department" onchange="this.form.submit()">
+            <select class="form-field" name="department_id" onchange="this.form.submit()">
                 <option value="">All Departments</option>
-                <?php foreach ($departments as $dept): ?>
-                    <option value="<?php echo htmlspecialchars($dept); ?>" 
-                        <?php echo $filter_department==$dept?'selected':''; ?>>
-                        <?php echo htmlspecialchars($dept); ?>
+                <?php foreach ($departments as $department): ?>
+                    <option value="<?php echo (int)$department['department_id']; ?>" 
+                        <?php echo $filter_department_id === (int)$department['department_id'] ? 'selected' : ''; ?>>
+                        <?php echo htmlspecialchars($department['department_name']); ?>
                     </option>
                 <?php endforeach; ?>
             </select>
@@ -103,8 +85,8 @@ while ($row = sqlsrv_fetch_array($docStmt, SQLSRV_FETCH_ASSOC)) {
         <form method="get" style="margin-bottom:24px; display:flex; gap:12px;">
             <input class="form-field" type="text" name="search_name" placeholder="Search by doctor name" 
                    value="<?php echo htmlspecialchars($search_name); ?>">
-            <?php if ($filter_department): ?>
-                <input type="hidden" name="department" value="<?php echo htmlspecialchars($filter_department); ?>">
+            <?php if ($filter_department_id > 0): ?>
+                <input type="hidden" name="department_id" value="<?php echo (int)$filter_department_id; ?>">
             <?php endif; ?>
             <button class="btn primary" type="submit">Search</button>
         </form>
