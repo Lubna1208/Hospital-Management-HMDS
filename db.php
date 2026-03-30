@@ -50,3 +50,36 @@ if (!function_exists('ensure_patient_record')) {
         return $insertStmt !== false;
     }
 }
+
+if (!function_exists('get_departments')) {
+    function get_departments($conn)
+    {
+        $departments = [];
+        $stmt = sqlsrv_query($conn, "SELECT department_id, department_name FROM dbo.departments ORDER BY department_name");
+
+        if ($stmt === false) {
+            return $departments;
+        }
+
+        while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+            $departments[] = $row;
+        }
+
+        return $departments;
+    }
+}
+
+if (!function_exists('department_exists')) {
+    function department_exists($departments, $department_id)
+    {
+        $department_id = (int)$department_id;
+
+        foreach ($departments as $department) {
+            if ((int)($department['department_id'] ?? 0) === $department_id) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
