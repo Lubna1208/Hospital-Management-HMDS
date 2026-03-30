@@ -333,3 +333,75 @@ BEGIN
     DROP COLUMN department;
 END
 GO
+
+IF COL_LENGTH('dbo.doctors', 'consultation_fee') IS NULL
+BEGIN
+    ALTER TABLE dbo.doctors
+    ADD consultation_fee DECIMAL(10,2) NOT NULL
+        CONSTRAINT DF_doctors_consultation_fee DEFAULT (0);
+END
+GO
+
+IF COL_LENGTH('dbo.appointments', 'consultation_fee') IS NULL
+BEGIN
+    ALTER TABLE dbo.appointments
+    ADD consultation_fee DECIMAL(10,2) NULL;
+END
+GO
+
+UPDATE a
+SET a.consultation_fee = ISNULL(d.consultation_fee, 0)
+FROM dbo.appointments a
+INNER JOIN dbo.doctors d ON d.id = a.doctor_id
+WHERE a.consultation_fee IS NULL;
+GO
+
+UPDATE dbo.appointments
+SET consultation_fee = 0
+WHERE consultation_fee IS NULL;
+GO
+
+IF EXISTS (
+    SELECT 1
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID('dbo.appointments')
+      AND name = 'consultation_fee'
+      AND is_nullable = 1
+)
+BEGIN
+    ALTER TABLE dbo.appointments
+    ALTER COLUMN consultation_fee DECIMAL(10,2) NOT NULL;
+END
+GO
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.default_constraints
+    WHERE parent_object_id = OBJECT_ID('dbo.appointments')
+      AND name = 'DF_appointments_consultation_fee'
+)
+BEGIN
+    ALTER TABLE dbo.appointments
+    ADD CONSTRAINT DF_appointments_consultation_fee DEFAULT (0) FOR consultation_fee;
+END
+GO
+
+IF OBJECT_ID('dbo.appointment_billing_history', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.appointment_billing_history (
+        billing_id INT IDENTITY(1,1) PRIMARY KEY,
+        appointment_id INT NOT NULL,
+        user_id INT NULL,
+        billed_amount DECIMAL(10,2) NOT NULL,
+        downloaded_at DATETIME NOT NULL DEFAULT GETDATE(),
+        CONSTRAINT FK_AppointmentBillingHistory_Appointments
+            FOREIGN KEY (appointment_id)
+            REFERENCES dbo.appointments(id)
+            ON DELETE CASCADE,
+        CONSTRAINT FK_AppointmentBillingHistory_Users
+            FOREIGN KEY (user_id)
+            REFERENCES dbo.users(id)
+            ON DELETE SET NULL
+    );
+END
+GO

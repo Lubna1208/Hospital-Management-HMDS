@@ -20,11 +20,14 @@ if (isset($_POST["add_doctor"])) {
     $department_id = (int)($_POST["department_id"] ?? 0);
     $phone = trim($_POST["phone"] ?? "");
     $room_no = trim($_POST["room_no"] ?? "");
+    $consultation_fee = trim($_POST["consultation_fee"] ?? "");
 
     if ($name === "" || $email === "" || $password === "") {
         $error = "Doctor name, email and password are required.";
     } elseif ($department_id > 0 && !department_exists($departments, $department_id)) {
         $error = "Please select a valid department.";
+    } elseif ($consultation_fee !== "" && (!is_numeric($consultation_fee) || (float)$consultation_fee < 0)) {
+        $error = "Please enter a valid consultation fee.";
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = "Please enter a valid email.";
     } else {
@@ -60,11 +63,12 @@ if (isset($_POST["add_doctor"])) {
                     $error = "Failed to get new doctor id.";
                 } else {
                     $insertDoc = "
-                        INSERT INTO dbo.doctors (id, full_name, department_id, phone, room_no)
-                        VALUES (?, ?, ?, ?, ?)
+                        INSERT INTO dbo.doctors (id, full_name, department_id, phone, room_no, consultation_fee)
+                        VALUES (?, ?, ?, ?, ?, ?)
                     ";
                     $departmentValue = $department_id > 0 ? $department_id : null;
-                    $ok2 = sqlsrv_query($conn, $insertDoc, [$newId, $name, $departmentValue, $phone, $room_no]);
+                    $feeValue = $consultation_fee !== "" ? (float)$consultation_fee : 0;
+                    $ok2 = sqlsrv_query($conn, $insertDoc, [$newId, $name, $departmentValue, $phone, $room_no, $feeValue]);
 
                     if ($ok2 === false) {
                         sqlsrv_rollback($conn);
@@ -103,7 +107,7 @@ if (isset($_POST["delete_doctor"])) {
 
 /* List Doctors */
 $listSql = "
-    SELECT u.id, u.name, u.email, dep.department_name AS department, d.phone, d.room_no
+    SELECT u.id, u.name, u.email, dep.department_name AS department, d.phone, d.room_no, d.consultation_fee
     FROM dbo.users u
     LEFT JOIN dbo.doctors d ON d.id = u.id
     LEFT JOIN dbo.departments dep ON dep.department_id = d.department_id
@@ -178,6 +182,7 @@ $listStmt = sqlsrv_query($conn, $listSql);
                 </select>
                 <input class="form-field" name="phone" placeholder="Phone (optional)">
                 <input class="form-field" name="room_no" placeholder="Room No (optional)">
+                <input class="form-field" type="number" min="0" step="0.01" name="consultation_fee" placeholder="Consultation Fee (Tk)">
               </div>
               <div style="margin-top:12px;">
                 <button class="btn" type="submit" name="add_doctor">Create Doctor</button>
@@ -190,7 +195,7 @@ $listStmt = sqlsrv_query($conn, $listSql);
 
             <table border="1" cellpadding="10" style="width:100%; background:white; border-radius:12px; overflow:hidden;">
               <tr>
-                <th>ID</th><th>Name</th><th>Email</th><th>Department</th><th>Phone</th><th>Room</th><th>Action</th>
+                <th>ID</th><th>Name</th><th>Email</th><th>Department</th><th>Phone</th><th>Room</th><th>Fee</th><th>Action</th>
               </tr>
 
               <?php if ($listStmt): ?>
@@ -202,6 +207,7 @@ $listStmt = sqlsrv_query($conn, $listSql);
                     <td><?php echo htmlspecialchars($r["department"] ?? ""); ?></td>
                     <td><?php echo htmlspecialchars($r["phone"] ?? ""); ?></td>
                     <td><?php echo htmlspecialchars($r["room_no"] ?? ""); ?></td>
+                    <td><?php echo "Tk " . number_format((float)($r["consultation_fee"] ?? 0), 2); ?></td>
                     <td>
                       <form method="post" style="display:inline;">
                         <input type="hidden" name="doctor_id" value="<?php echo (int)$r["id"]; ?>">

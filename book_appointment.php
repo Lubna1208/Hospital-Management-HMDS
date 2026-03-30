@@ -44,6 +44,10 @@ if(!$schedule){
     exit;
 }
 
+$doctorStmt = sqlsrv_query($conn, "SELECT consultation_fee FROM dbo.doctors WHERE id = ?", [$doctor_id]);
+$doctorRow = $doctorStmt ? sqlsrv_fetch_array($doctorStmt, SQLSRV_FETCH_ASSOC) : null;
+$consultationFee = (float)($doctorRow['consultation_fee'] ?? 0);
+
 /* ✅ Count existing patients */
 $sql2="SELECT COUNT(*) as cnt FROM appointments WHERE doctor_id=? AND appointment_date=?";
 $stmt2=sqlsrv_query($conn,$sql2,[$doctor_id,$date]);
@@ -67,10 +71,10 @@ $time=date("H:i:s",$start+($serial-1)*$interval);
 
 /* ✅ Insert */
 $sql3="INSERT INTO appointments
-(doctor_id,patient_id,appointment_date,appointment_time,serial_no,status)
-VALUES(?,?,?,?,?,'Pending')";
+(doctor_id,patient_id,appointment_date,appointment_time,serial_no,status,consultation_fee)
+VALUES(?,?,?,?,?,'Pending',?)";
 
-$params=[$doctor_id,$patient_id,$date,$time,$serial];
+$params=[$doctor_id,$patient_id,$date,$time,$serial,$consultationFee];
 
 $ok=sqlsrv_query($conn,$sql3,$params);
 

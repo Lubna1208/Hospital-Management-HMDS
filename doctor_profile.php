@@ -18,9 +18,12 @@ if (isset($_POST["save_profile"])) {
     $department_id = (int)($_POST["department_id"] ?? 0);
     $phone = trim($_POST["phone"] ?? "");
     $room_no = trim($_POST["room_no"] ?? "");
+    $consultation_fee = trim($_POST["consultation_fee"] ?? "");
 
     if ($department_id > 0 && !department_exists($departments, $department_id)) {
         $error = "Please select a valid department.";
+    } elseif ($consultation_fee !== "" && (!is_numeric($consultation_fee) || (float)$consultation_fee < 0)) {
+        $error = "Please enter a valid consultation fee.";
     }
 
     if ($error === "") {
@@ -30,15 +33,17 @@ if (isset($_POST["save_profile"])) {
 
         if ($exists) {
             $sql = "UPDATE dbo.doctors
-                    SET full_name=?, department_id=?, phone=?, room_no=?, updated_at=GETDATE()
+                    SET full_name=?, department_id=?, phone=?, room_no=?, consultation_fee=?, updated_at=GETDATE()
                     WHERE id=?";
             $departmentValue = $department_id > 0 ? $department_id : null;
-            $ok = sqlsrv_query($conn, $sql, [$full_name, $departmentValue, $phone, $room_no, $doctor_id]);
+            $feeValue = $consultation_fee !== "" ? (float)$consultation_fee : 0;
+            $ok = sqlsrv_query($conn, $sql, [$full_name, $departmentValue, $phone, $room_no, $feeValue, $doctor_id]);
         } else {
-            $sql = "INSERT INTO dbo.doctors (id, full_name, department_id, phone, room_no)
-                    VALUES (?, ?, ?, ?, ?)";
+            $sql = "INSERT INTO dbo.doctors (id, full_name, department_id, phone, room_no, consultation_fee)
+                    VALUES (?, ?, ?, ?, ?, ?)";
             $departmentValue = $department_id > 0 ? $department_id : null;
-            $ok = sqlsrv_query($conn, $sql, [$doctor_id, $full_name, $departmentValue, $phone, $room_no]);
+            $feeValue = $consultation_fee !== "" ? (float)$consultation_fee : 0;
+            $ok = sqlsrv_query($conn, $sql, [$doctor_id, $full_name, $departmentValue, $phone, $room_no, $feeValue]);
         }
 
         if ($ok) $msg = "Profile saved successfully.";
@@ -150,6 +155,8 @@ $userRow = $userStmt ? sqlsrv_fetch_array($userStmt, SQLSRV_FETCH_ASSOC) : null;
                   value="<?php echo htmlspecialchars($doctor["phone"] ?? ""); ?>">
                 <input class="form-field" name="room_no" placeholder="Room No"
                   value="<?php echo htmlspecialchars($doctor["room_no"] ?? ""); ?>">
+                <input class="form-field" type="number" min="0" step="0.01" name="consultation_fee" placeholder="Consultation Fee"
+                  value="<?php echo htmlspecialchars((string)($doctor["consultation_fee"] ?? "")); ?>">
               </div>
 
               <div style="margin-top:12px;">
