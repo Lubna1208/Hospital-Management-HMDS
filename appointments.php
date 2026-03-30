@@ -71,6 +71,8 @@ echo "<option value='{$row['id']}'>{$row['full_name']}</option>";
 <th>Date</th>
 <th>Time</th>
 <th>Serial</th>
+<th>Fee</th>
+<th>Bill</th>
 </tr>
 
 <?php
@@ -95,6 +97,8 @@ echo "<tr>
 <td>$date</td>
 <td>($start - $end)</td>
 <td>{$row['serial_no']}</td>
+<td>Tk " . number_format((float)($row['consultation_fee'] ?? 0), 2) . "</td>
+<td><a class='btn small-btn' href='appointment_bill.php?appointment_id=" . (int)$row['id'] . "'>Download Bill</a></td>
 </tr>";
 }
 ?>
