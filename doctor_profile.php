@@ -51,6 +51,23 @@ $userRow = $userStmt ? sqlsrv_fetch_array($userStmt, SQLSRV_FETCH_ASSOC) : null;
   <meta charset="UTF-8">
   <title>Doctor Profile — PISD</title>
   <link rel="stylesheet" href="assets/patient.css">
+  <style>
+    /* Additional styling for schedule table */
+    .schedule-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+    }
+    .schedule-table th, .schedule-table td {
+        border: 1px solid #e2e8f0;
+        padding: 8px 12px;
+        text-align: left;
+    }
+    .schedule-table th {
+        background-color: #f8fafc;
+        font-weight: 600;
+    }
+  </style>
 </head>
 <body>
 <div class="container">
@@ -118,6 +135,40 @@ $userRow = $userStmt ? sqlsrv_fetch_array($userStmt, SQLSRV_FETCH_ASSOC) : null;
             </form>
           </div>
 
+          <!-- Schedule Section -->
+          <div class="feature-card" style="margin-top:16px;">
+            <h3>My Schedule</h3>
+            <?php
+            // Fetch doctor's schedule
+            $scheduleSql = "SELECT * FROM doctor_schedule WHERE doctor_id = ? ORDER BY day_of_week";
+            $scheduleStmt = sqlsrv_query($conn, $scheduleSql, [$doctor_id]);
+
+            if ($scheduleStmt === false) {
+                echo '<p style="color: #b91c1c;">Error loading schedule: ' . htmlspecialchars(print_r(sqlsrv_errors(), true)) . '</p>';
+            } else {
+                $days = [1=>"Monday",2=>"Tuesday",3=>"Wednesday",4=>"Thursday",5=>"Friday",6=>"Saturday",7=>"Sunday"];
+                $hasRows = false;
+                echo '<table class="schedule-table">';
+                echo '<tr><th>Day</th><th>Time</th><th>Max Patients</th></tr>';
+                while ($row = sqlsrv_fetch_array($scheduleStmt, SQLSRV_FETCH_ASSOC)) {
+                    $hasRows = true;
+                    $start = isset($row['start_time']) ? $row['start_time']->format('H:i') : '--:--';
+                    $end = isset($row['end_time']) ? $row['end_time']->format('H:i') : '--:--';
+                    $dayName = $days[$row['day_of_week']] ?? 'Unknown';
+                    $maxPatients = htmlspecialchars($row['max_patients'] ?? '');
+                    echo "<tr>
+                            <td>{$dayName}</td>
+                            <td>{$start} - {$end}</td>
+                            <td>{$maxPatients}</td>
+                          </tr>";
+                }
+                echo '</table>';
+                if (!$hasRows) {
+                    echo '<p>No schedule has been set up yet.</p>';
+                }
+            }
+            ?>
+          </div>
       </div>
   </div>
 
