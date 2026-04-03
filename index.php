@@ -51,7 +51,7 @@ include "db.php";
       
       <div class="cta-buttons">
         <?php if(isset($_SESSION["user_email"])): ?>
-          <a class="btn primary" href="#features">Dashboard</a>
+          <a class="btn primary" href="./patient_home.php">Dashboard</a>
         <?php else: ?>
           <a class="btn primary" href="register.php">Register</a>
           <a class="btn" href="login.php">Login</a>

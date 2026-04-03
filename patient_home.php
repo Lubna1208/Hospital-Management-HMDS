@@ -72,6 +72,16 @@ $user_name = $user['name'];
                 <li style="margin-bottom:12px;">
                     <a class="btn small-btn" href="vaccines.php">Vaccines</a>
                 </li>
+
+                <!-- ✅ NEW TEST BUTTON -->
+                <li style="margin-bottom:12px;">
+                    <a class="btn small-btn" href="tests.php">Tests</a>
+                </li>
+
+                <!-- OPTIONAL -->
+                <li style="margin-bottom:12px;">
+                    <a class="btn small-btn" href="my_tests.php">My Tests</a>
+                </li>
             </ul>
         </div>
 
