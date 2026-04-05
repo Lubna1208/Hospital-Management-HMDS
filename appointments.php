@@ -76,12 +76,27 @@ echo "<option value='{$row['id']}'>{$row['full_name']}</option>";
 </tr>
 
 <?php
-$sql = "SELECT a.*, d.full_name, s.start_time, s.end_time
+$sql = "
+WITH latest_schedule AS (
+    SELECT
+        id,
+        doctor_id,
+        day_of_week,
+        start_time,
+        end_time,
+        ROW_NUMBER() OVER (
+            PARTITION BY doctor_id, day_of_week
+            ORDER BY id DESC
+        ) AS rn
+    FROM doctor_schedule
+)
+SELECT a.*, d.full_name, s.start_time, s.end_time
 FROM appointments a
 JOIN doctors d ON a.doctor_id=d.id
-JOIN doctor_schedule s 
-ON s.doctor_id=a.doctor_id 
+JOIN latest_schedule s
+ON s.doctor_id=a.doctor_id
 AND s.day_of_week = ((DATEDIFF(DAY, '19000101', a.appointment_date) % 7) + 1)
+AND s.rn = 1
 WHERE a.patient_id=?";
 
 $stmt = sqlsrv_query($conn,$sql,[$user_id]);

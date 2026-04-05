@@ -7,8 +7,8 @@ if (!isset($_SESSION["user_id"]) || ($_SESSION["role"] ?? "") !== "patient") {
     exit;
 }
 
-$search_name = trim($_GET['search_name'] ?? '');
-$filter_department_id = (int)($_GET['department_id'] ?? 0);
+$search_name = trim($_GET["search_name"] ?? "");
+$filter_department_id = (int)($_GET["department_id"] ?? 0);
 $departments = get_departments($conn);
 
 $sql = "SELECT d.id, d.full_name, dep.department_name AS department, d.phone, d.room_no, d.consultation_fee, u.email
@@ -41,19 +41,35 @@ $dayNames = [1 => "Monday", 2 => "Tuesday", 3 => "Wednesday", 4 => "Thursday", 5
 
 if (!empty($doctors)) {
     $doctorIds = array_map(function ($doctor) {
-        return (int)$doctor['id'];
+        return (int)$doctor["id"];
     }, $doctors);
 
-    $placeholders = implode(',', array_fill(0, count($doctorIds), '?'));
-    $scheduleSql = "SELECT doctor_id, day_of_week, start_time, end_time, max_patients
-                    FROM dbo.doctor_schedule
-                    WHERE doctor_id IN ($placeholders)
-                    ORDER BY doctor_id, day_of_week, start_time";
+    $placeholders = implode(",", array_fill(0, count($doctorIds), "?"));
+    $scheduleSql = "
+        WITH latest_schedule AS (
+            SELECT
+                doctor_id,
+                day_of_week,
+                start_time,
+                end_time,
+                max_patients,
+                ROW_NUMBER() OVER (
+                    PARTITION BY doctor_id, day_of_week
+                    ORDER BY id DESC
+                ) AS rn
+            FROM dbo.doctor_schedule
+            WHERE doctor_id IN ($placeholders)
+        )
+        SELECT doctor_id, day_of_week, start_time, end_time, max_patients
+        FROM latest_schedule
+        WHERE rn = 1
+        ORDER BY doctor_id, day_of_week, start_time
+    ";
     $scheduleStmt = sqlsrv_query($conn, $scheduleSql, $doctorIds);
 
     if ($scheduleStmt) {
         while ($schedule = sqlsrv_fetch_array($scheduleStmt, SQLSRV_FETCH_ASSOC)) {
-            $doctorId = (int)$schedule['doctor_id'];
+            $doctorId = (int)$schedule["doctor_id"];
             $doctorSchedules[$doctorId][] = $schedule;
         }
     }
@@ -63,6 +79,7 @@ if (!empty($doctors)) {
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Search Doctors - PISD</title>
 <link rel="stylesheet" href="assets/patient.css">
 </head>
@@ -70,7 +87,7 @@ if (!empty($doctors)) {
 <div class="container">
 
 <nav class="nav">
-    <div class="logo">H</div>
+    <div class="logo">Hospital</div>
     <div class="actions">
         <span class="user-name"><?php echo htmlspecialchars($_SESSION["user_name"] ?? "Patient"); ?></span>
         <a class="btn" href="patient_home.php">Home</a>
@@ -78,17 +95,16 @@ if (!empty($doctors)) {
     </div>
 </nav>
 
-<div style="display:flex; gap:32px; margin-top:32px;">
+<div class="layout-grid">
 
-    <div style="width:250px; background:white; padding:24px; border-radius:16px; box-shadow:0 8px 24px rgba(10,44,62,.08);">
+    <div class="sidebar-card">
         <h3 style="margin-bottom:16px;">Filter by Department</h3>
         <form method="get">
             <select class="form-field" name="department_id" onchange="this.form.submit()">
                 <option value="">All Departments</option>
                 <?php foreach ($departments as $department): ?>
-                    <option value="<?php echo (int)$department['department_id']; ?>"
-                        <?php echo $filter_department_id === (int)$department['department_id'] ? 'selected' : ''; ?>>
-                        <?php echo htmlspecialchars($department['department_name']); ?>
+                    <option value="<?php echo (int)$department["department_id"]; ?>" <?php echo $filter_department_id === (int)$department["department_id"] ? "selected" : ""; ?>>
+                        <?php echo htmlspecialchars($department["department_name"]); ?>
                     </option>
                 <?php endforeach; ?>
             </select>
@@ -98,46 +114,61 @@ if (!empty($doctors)) {
         </form>
     </div>
 
-    <div style="flex:1;">
+    <div style="flex:1; min-width:0;">
         <h2 class="section-title">Search Doctors</h2>
 
-        <form method="get" style="margin-bottom:24px; display:flex; gap:12px;">
-            <input class="form-field" type="text" name="search_name" placeholder="Search by doctor name"
-                   value="<?php echo htmlspecialchars($search_name); ?>">
+        <form method="get" class="inline-actions" style="margin-bottom:24px;">
+            <input class="form-field" type="text" name="search_name" placeholder="Search by doctor name" value="<?php echo htmlspecialchars($search_name); ?>" style="max-width:360px;">
             <?php if ($filter_department_id > 0): ?>
                 <input type="hidden" name="department_id" value="<?php echo (int)$filter_department_id; ?>">
             <?php endif; ?>
-            <button class="btn primary" type="submit">Search</button>
+            <button class="btn" type="submit">Search</button>
         </form>
 
-        <div class="features-grid">
+        <div class="vaccine-grid">
             <?php if (count($doctors) === 0): ?>
-                <p>No doctors found.</p>
+                <div class="feature-card">
+                    <div class="feature-card-body">
+                        <p>No doctors found.</p>
+                    </div>
+                </div>
             <?php else: ?>
                 <?php foreach ($doctors as $doc): ?>
-                <div class="feature-card align-left">
-                    <div class="feature-icon">DR</div>
-                    <h3><?php echo htmlspecialchars($doc['full_name']); ?></h3>
-                    <p><strong>Email:</strong> <?php echo htmlspecialchars($doc['email'] ?? ''); ?></p>
-                    <p><strong>Department:</strong> <?php echo htmlspecialchars($doc['department'] ?? 'N/A'); ?></p>
-                    <p><strong>Contact:</strong> <?php echo htmlspecialchars($doc['phone'] ?? 'N/A'); ?></p>
-                    <p><strong>Room No:</strong> <?php echo htmlspecialchars($doc['room_no'] ?? 'N/A'); ?></p>
-                    <p><strong>Consultation Fee:</strong> <?php echo "Tk " . number_format((float)($doc['consultation_fee'] ?? 0), 2); ?></p>
+                <div class="vaccine-card">
+                    <h3><?php echo htmlspecialchars($doc["full_name"]); ?></h3>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <span class="detail-label">Email</span>
+                            <span class="detail-value"><?php echo htmlspecialchars($doc["email"] ?? ""); ?></span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Department</span>
+                            <span class="detail-value"><?php echo htmlspecialchars($doc["department"] ?? "N/A"); ?></span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Contact</span>
+                            <span class="detail-value"><?php echo htmlspecialchars($doc["phone"] ?? "N/A"); ?></span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Room No</span>
+                            <span class="detail-value"><?php echo htmlspecialchars($doc["room_no"] ?? "N/A"); ?></span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Consultation Fee</span>
+                            <span class="detail-value"><?php echo "Tk " . number_format((float)($doc["consultation_fee"] ?? 0), 2); ?></span>
+                        </div>
+                    </div>
 
-                    <div class="notes-panel" style="margin-top:16px;">
-                        <p><strong>Weekly Schedule</strong></p>
-                        <?php if (!empty($doctorSchedules[(int)$doc['id']])): ?>
-                            <?php foreach ($doctorSchedules[(int)$doc['id']] as $schedule): ?>
+                    <div class="notes-copy">
+                        <span class="detail-label">Weekly Schedule</span>
+                        <?php if (!empty($doctorSchedules[(int)$doc["id"]])): ?>
+                            <?php foreach ($doctorSchedules[(int)$doc["id"]] as $schedule): ?>
                                 <?php
-                                $dayName = $dayNames[(int)$schedule['day_of_week']] ?? 'Unknown';
-                                $start = $schedule['start_time'] instanceof DateTime ? $schedule['start_time']->format('H:i') : '--:--';
-                                $end = $schedule['end_time'] instanceof DateTime ? $schedule['end_time']->format('H:i') : '--:--';
+                                $dayName = $dayNames[(int)$schedule["day_of_week"]] ?? "Unknown";
+                                $start = $schedule["start_time"] instanceof DateTime ? $schedule["start_time"]->format("H:i") : "--:--";
+                                $end = $schedule["end_time"] instanceof DateTime ? $schedule["end_time"]->format("H:i") : "--:--";
                                 ?>
-                                <p>
-                                    <?php echo htmlspecialchars($dayName); ?>:
-                                    <?php echo htmlspecialchars($start . ' - ' . $end); ?>
-                                    (Max <?php echo (int)($schedule['max_patients'] ?? 0); ?>)
-                                </p>
+                                <p><?php echo htmlspecialchars($dayName . ": " . $start . " - " . $end . " (Max " . (int)($schedule["max_patients"] ?? 0) . ")"); ?></p>
                             <?php endforeach; ?>
                         <?php else: ?>
                             <p>No schedule available yet.</p>

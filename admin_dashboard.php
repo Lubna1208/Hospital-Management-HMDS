@@ -10,36 +10,41 @@ if (!isset($_SESSION["user_id"]) || ($_SESSION["role"] ?? "") !== "admin") {
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Admin Dashboard — PISD</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - PISD</title>
   <link rel="stylesheet" href="assets/patient.css">
 </head>
 <body>
 <div class="container">
 
   <nav class="nav">
-      <div class="logo">🏥</div>
+      <div class="logo">Hospital</div>
       <div class="actions">
           <span class="user-name"><?php echo htmlspecialchars($_SESSION["user_name"] ?? "Admin"); ?></span>
           <a class="btn" href="logout.php">Logout</a>
       </div>
   </nav>
 
-  <div style="display:flex; gap:32px; margin-top:32px;">
-      <div style="width:250px; background:white; padding:24px; border-radius:16px; box-shadow:0 8px 24px rgba(10,44,62,.08);">
+  <div class="layout-grid">
+      <div class="sidebar-card">
           <h3 style="margin-bottom:16px;">Admin Dashboard</h3>
-          <ul style="list-style:none; padding:0;">
-              <li style="margin-bottom:12px;">
+          <ul class="sidebar-list">
+              <li>
                   <a class="btn small-btn" href="admin_doctors.php">Manage Doctors</a>
               </li>
-              <li style="margin-bottom:12px;">
+              <li>
                   <a class="btn small-btn" href="admin_vaccines.php">Manage Vaccines</a>
               </li>
           </ul>
       </div>
 
-      <div style="flex:1;">
+      <div style="flex:1; min-width:0;">
           <h2 class="section-title">Welcome, Admin</h2>
-          <p>From here you can manage doctors and maintain the Vaccine module for the rest of HMDS.</p>
+          <div class="feature-card">
+              <div class="feature-card-body">
+                  <p>From here you can manage doctors and maintain the vaccine module for the rest of HMDS.</p>
+              </div>
+          </div>
       </div>
   </div>
 

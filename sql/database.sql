@@ -386,6 +386,30 @@ BEGIN
 END
 GO
 
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = 'UX_doctor_schedule_doctor_id_day_of_week'
+      AND object_id = OBJECT_ID('dbo.doctor_schedule')
+)
+BEGIN
+    CREATE UNIQUE INDEX UX_doctor_schedule_doctor_id_day_of_week
+    ON dbo.doctor_schedule(doctor_id, day_of_week);
+END
+GO
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = 'UX_appointments_patient_doctor_date'
+      AND object_id = OBJECT_ID('dbo.appointments')
+)
+BEGIN
+    CREATE UNIQUE INDEX UX_appointments_patient_doctor_date
+    ON dbo.appointments(patient_id, doctor_id, appointment_date);
+END
+GO
+
 IF OBJECT_ID('dbo.appointment_billing_history', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.appointment_billing_history (
@@ -403,5 +427,106 @@ BEGIN
             REFERENCES dbo.users(id)
             ON DELETE SET NULL
     );
+END
+GO
+
+IF OBJECT_ID('dbo.tests', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.tests (
+        test_id INT IDENTITY(1,1) PRIMARY KEY,
+        test_name VARCHAR(150) NOT NULL,
+        price DECIMAL(10,2) NOT NULL,
+        min_age INT NULL,
+        max_age INT NULL,
+        gender_applicable VARCHAR(20) NOT NULL DEFAULT 'Both',
+        created_at DATETIME NOT NULL DEFAULT GETDATE()
+    );
+END
+GO
+
+INSERT INTO dbo.tests (test_name, price, min_age, max_age, gender_applicable)
+SELECT v.test_name, v.price, v.min_age, v.max_age, v.gender_applicable
+FROM (VALUES
+    ('Liver Function Test', 800, 15, 70, 'Both'),
+    ('Kidney Function Test', 900, 18, 75, 'Both'),
+    ('Thyroid Test', 600, 18, 65, 'Both'),
+    ('Cholesterol Test', 550, 20, 80, 'Both'),
+    ('Eye Test', 200, 5, 80, 'Both'),
+    ('HIV Test', 1200, 18, 60, 'Both'),
+    ('Allergy Test', 950, 10, 70, 'Both'),
+    ('Pregnancy Test', 400, 18, 45, 'Female'),
+    ('ECG Test', 700, 25, 80, 'Both'),
+    ('CT Scan', 2500, 18, 80, 'Both'),
+    ('MRI Scan', 3000, 18, 80, 'Both'),
+    ('Blood Sugar Test', 300, 10, 80, 'Both'),
+    ('Vitamin D Test', 850, 18, 70, 'Both'),
+    ('Hemoglobin Test', 350, 5, 80, 'Both'),
+    ('COVID-19 PCR Test', 500, 5, 90, 'Both')
+) AS v(test_name, price, min_age, max_age, gender_applicable)
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM dbo.tests t
+    WHERE t.test_name = v.test_name
+);
+GO
+
+IF OBJECT_ID('dbo.test_receipts', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.test_receipts (
+        receipt_id INT IDENTITY(1,1) PRIMARY KEY,
+        patient_id INT NOT NULL,
+        total_amount DECIMAL(10,2) NOT NULL,
+        payment_status VARCHAR(20) NOT NULL DEFAULT 'Pending',
+        created_at DATETIME NOT NULL DEFAULT GETDATE(),
+        CONSTRAINT FK_TestReceipts_Patients FOREIGN KEY (patient_id)
+            REFERENCES dbo.patients(id)
+            ON DELETE CASCADE
+    );
+END
+GO
+
+IF OBJECT_ID('dbo.patient_test', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.patient_test (
+        patient_test_id INT IDENTITY(1,1) PRIMARY KEY,
+        patient_id INT NOT NULL,
+        test_id INT NOT NULL,
+        receipt_id INT NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'Pending',
+        applied_date DATETIME NOT NULL DEFAULT GETDATE(),
+        CONSTRAINT FK_PatientTest_Patients FOREIGN KEY (patient_id)
+            REFERENCES dbo.patients(id)
+            ON DELETE CASCADE,
+        CONSTRAINT FK_PatientTest_Tests FOREIGN KEY (test_id)
+            REFERENCES dbo.tests(test_id)
+            ON DELETE CASCADE,
+        CONSTRAINT FK_PatientTest_Receipts FOREIGN KEY (receipt_id)
+            REFERENCES dbo.test_receipts(receipt_id)
+            ON DELETE SET NULL
+    );
+END
+GO
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = 'UX_patient_test_patient_id_test_id'
+      AND object_id = OBJECT_ID('dbo.patient_test')
+)
+BEGIN
+    CREATE UNIQUE INDEX UX_patient_test_patient_id_test_id
+        ON dbo.patient_test(patient_id, test_id);
+END
+GO
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.check_constraints
+    WHERE name = 'CK_patient_test_status'
+)
+BEGIN
+    ALTER TABLE dbo.patient_test
+    ADD CONSTRAINT CK_patient_test_status
+        CHECK (status IN ('Pending', 'Paid', 'Cancelled'));
 END
 GO

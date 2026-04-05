@@ -80,6 +80,7 @@ if ($stmt) {
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Vaccines - PISD</title>
 <link rel="stylesheet" href="assets/patient.css">
 </head>
@@ -87,7 +88,7 @@ if ($stmt) {
 <div class="container">
 
 <nav class="nav">
-    <div class="logo">🏥</div>
+    <div class="logo">Hospital</div>
     <div class="actions">
         <span class="user-name"><?php echo htmlspecialchars($_SESSION["user_name"] ?? "Patient"); ?></span>
         <a class="btn" href="patient_home.php">Home</a>
@@ -95,9 +96,8 @@ if ($stmt) {
     </div>
 </nav>
 
-<div style="display:flex; gap:32px; margin-top:32px;">
-
-    <div style="width:250px; background:white; padding:24px; border-radius:16px; box-shadow:0 8px 24px rgba(10,44,62,.08);">
+<div class="layout-grid">
+    <div class="sidebar-card">
         <h3 style="margin-bottom:16px;">Filter Vaccines</h3>
 
         <?php if ($patient && $patientAgeMonths !== null && $patientGender !== ""): ?>
@@ -106,7 +106,7 @@ if ($stmt) {
         <?php endif; ?>
 
         <form method="get">
-            <label style="display:block; margin-bottom:8px; font-weight:600;">Gender</label>
+            <label class="field-label">Gender</label>
             <select class="form-field" name="gender_applicable" onchange="this.form.submit()">
                 <option value="">All Genders</option>
                 <?php foreach ($allowedGenders as $genderOption): ?>
@@ -116,7 +116,7 @@ if ($stmt) {
                 <?php endforeach; ?>
             </select>
 
-            <label style="display:block; margin:16px 0 8px; font-weight:600;">Age From</label>
+            <label class="field-label" style="margin-top:16px;">Age From</label>
             <div class="age-input-group">
                 <input class="form-field" type="number" min="0" name="age_from" value="<?php echo htmlspecialchars($ageFrom); ?>" placeholder="Age from">
                 <select class="form-field age-unit-field" name="age_from_unit">
@@ -126,7 +126,7 @@ if ($stmt) {
                 </select>
             </div>
 
-            <label style="display:block; margin:16px 0 8px; font-weight:600;">Age To</label>
+            <label class="field-label" style="margin-top:16px;">Age To</label>
             <div class="age-input-group">
                 <input class="form-field" type="number" min="0" name="age_to" value="<?php echo htmlspecialchars($ageTo); ?>" placeholder="Age to">
                 <select class="form-field age-unit-field" name="age_to_unit">
@@ -144,10 +144,10 @@ if ($stmt) {
         </form>
     </div>
 
-    <div style="flex:1;">
+    <div style="flex:1; min-width:0;">
         <h2 class="section-title">Search Vaccines</h2>
 
-        <form method="get" style="margin-bottom:24px; display:flex; gap:12px;">
+        <form method="get" class="inline-actions" style="margin-bottom:24px;">
             <input class="form-field" type="text" name="search_name" placeholder="Search by vaccine name" value="<?php echo htmlspecialchars($searchName); ?>" style="max-width:360px;">
 
             <?php if ($genderFilter): ?>
@@ -162,32 +162,63 @@ if ($stmt) {
                 <input type="hidden" name="age_to_unit" value="<?php echo htmlspecialchars($ageToUnit); ?>">
             <?php endif; ?>
 
-            <button class="btn primary" type="submit">Search</button>
+            <button class="btn" type="submit">Search</button>
             <a class="btn small-btn" href="vaccines.php">Reset</a>
         </form>
 
-        <div class="features-grid">
+        <div class="vaccine-grid">
             <?php if (count($vaccines) === 0): ?>
-                <p>No vaccines found.</p>
+                <div class="feature-card">
+                    <div class="feature-card-body">
+                        <p>No vaccines found.</p>
+                    </div>
+                </div>
             <?php else: ?>
                 <?php foreach ($vaccines as $vaccine): ?>
-                <div class="feature-card" style="text-align:left;">
-                    <div class="feature-icon">💉</div>
-                    <h3><?php echo htmlspecialchars($vaccine["vaccine_name"] ?? ""); ?></h3>
-                    <p><strong>Status:</strong> <?php echo htmlspecialchars($vaccine["_eligibility"]["status"] ?? "Unknown"); ?></p>
-                    <p><strong>Reason:</strong> <?php echo htmlspecialchars($vaccine["_eligibility"]["reason"] ?? ""); ?></p>
-                    <p><strong>Price:</strong> Tk <?php echo number_format((float)($vaccine["price"] ?? 0), 2); ?></p>
-                    <p><strong>Minimum Age:</strong> <?php echo htmlspecialchars(vaccine_format_age_months((int)($vaccine["min_age"] ?? 0))); ?></p>
-                    <p><strong>Maximum Age:</strong> <?php echo htmlspecialchars(vaccine_format_max_age((int)($vaccine["max_age"] ?? 0))); ?></p>
-                    <p><strong>Gender Applicable:</strong> <?php echo htmlspecialchars($vaccine["gender_applicable"] ?? "Both"); ?></p>
-                    <p><strong>Preparation Notes:</strong> <?php echo htmlspecialchars($vaccine["preparation_notes"] ?? "No preparation notes added."); ?></p>
-                    <a class="btn small-btn" href="vaccine_billing.php?vaccine_id=<?php echo (int)$vaccine["vaccine_id"]; ?>" style="margin-top:12px;">View Details</a>
+                <?php $eligibility = $vaccine["_eligibility"]; ?>
+                <div class="vaccine-card">
+                    <div class="inline-spread">
+                        <div>
+                            <h3><?php echo htmlspecialchars($vaccine["vaccine_name"] ?? ""); ?></h3>
+                            <p class="eligibility-text"><?php echo htmlspecialchars($eligibility["reason"] ?? ""); ?></p>
+                        </div>
+                        <span class="status-badge <?php echo !empty($eligibility["eligible"]) ? "status-eligible" : "status-not-eligible"; ?>">
+                            <?php echo htmlspecialchars($eligibility["status"] ?? "Unknown"); ?>
+                        </span>
+                    </div>
+
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <span class="detail-label">Price</span>
+                            <span class="detail-value">Tk <?php echo number_format((float)($vaccine["price"] ?? 0), 2); ?></span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Gender</span>
+                            <span class="detail-value"><?php echo htmlspecialchars($vaccine["gender_applicable"] ?? "Both"); ?></span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Minimum Age</span>
+                            <span class="detail-value"><?php echo htmlspecialchars(vaccine_format_age_months((int)($vaccine["min_age"] ?? 0))); ?></span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Maximum Age</span>
+                            <span class="detail-value"><?php echo htmlspecialchars(vaccine_format_max_age((int)($vaccine["max_age"] ?? 0))); ?></span>
+                        </div>
+                    </div>
+
+                    <div class="notes-copy">
+                        <span class="detail-label">Preparation Notes</span>
+                        <p><?php echo htmlspecialchars($vaccine["preparation_notes"] ?? "No preparation notes added."); ?></p>
+                    </div>
+
+                    <div class="inline-actions" style="margin-top:16px;">
+                        <a class="btn small-btn" href="vaccine_billing.php?vaccine_id=<?php echo (int)$vaccine["vaccine_id"]; ?>">View Details</a>
+                    </div>
                 </div>
                 <?php endforeach; ?>
             <?php endif; ?>
         </div>
     </div>
-
 </div>
 </div>
 </body>

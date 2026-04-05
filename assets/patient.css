@@ -154,6 +154,11 @@ body{
   padding: 20px 24px 24px;
 }
 
+.feature-card-body .btn,
+.feature-card-body .small-btn{
+  align-self:flex-start;
+}
+
 .feature-card h3{
   margin-top: 0;
   margin-bottom: 16px;
@@ -419,6 +424,7 @@ p.error{
   border-radius:20px;
   padding:18px;
   background:#fbfeff;
+  min-width:0;
 }
 
 .inline-spread{
@@ -426,6 +432,10 @@ p.error{
   justify-content:space-between;
   align-items:flex-start;
   gap:12px;
+}
+
+.inline-spread > *{
+  min-width:0;
 }
 
 .status-badge{
@@ -477,6 +487,7 @@ p.error{
   display:flex;
   flex-direction:column;
   gap:4px;
+  min-width:0;
 }
 
 .detail-label{
@@ -490,12 +501,20 @@ p.error{
 .detail-value{
   color:var(--primary-900);
   font-weight:600;
+  overflow-wrap:anywhere;
+  word-break:break-word;
 }
 
 .notes-copy{
   margin-top:14px;
   padding-top:14px;
   border-top:1px solid var(--line);
+}
+
+.notes-copy p,
+.eligibility-text{
+  overflow-wrap:anywhere;
+  word-break:break-word;
 }
 
 /* Responsive */

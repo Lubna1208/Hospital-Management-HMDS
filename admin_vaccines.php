@@ -130,6 +130,7 @@ $listStmt = sqlsrv_query($conn, $listSql, $params);
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Manage Vaccines - PISD</title>
   <link rel="stylesheet" href="assets/patient.css">
 </head>
@@ -137,48 +138,42 @@ $listStmt = sqlsrv_query($conn, $listSql, $params);
 <div class="container">
 
   <nav class="nav">
-      <div class="logo">🏥</div>
+      <div class="logo">Hospital</div>
       <div class="actions">
           <span class="user-name">Admin</span>
           <a class="btn" href="logout.php">Logout</a>
       </div>
   </nav>
 
-  <div style="display:flex; gap:32px; margin-top:32px;">
-      <div style="width:250px; background:white; padding:24px; border-radius:16px; box-shadow:0 8px 24px rgba(10,44,62,.08);">
+  <div class="layout-grid">
+      <div class="sidebar-card">
           <h3 style="margin-bottom:16px;">Admin</h3>
-          <ul style="list-style:none; padding:0;">
-              <li style="margin-bottom:12px;">
-                  <a class="btn small-btn" href="admin_dashboard.php">Dashboard</a>
-              </li>
-              <li style="margin-bottom:12px;">
-                  <a class="btn small-btn" href="admin_doctors.php">Manage Doctors</a>
-              </li>
-              <li style="margin-bottom:12px;">
-                  <a class="btn small-btn" href="admin_vaccines.php">Manage Vaccines</a>
-              </li>
+          <ul class="sidebar-list">
+              <li><a class="btn small-btn" href="admin_dashboard.php">Dashboard</a></li>
+              <li><a class="btn small-btn" href="admin_doctors.php">Manage Doctors</a></li>
+              <li><a class="btn small-btn" href="admin_vaccines.php">Manage Vaccines</a></li>
           </ul>
       </div>
 
-      <div style="flex:1;">
+      <div style="flex:1; min-width:0;">
           <h2 class="section-title">Manage Vaccines</h2>
 
           <?php if ($msg): ?>
-            <div style="margin-bottom: 16px; padding: 12px 16px; border-radius: 12px; background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.2); color: #166534; font-size: 14px; font-weight: 600;">
+            <div style="margin-bottom:16px; padding:12px 16px; border-radius:12px; background:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.2); color:#166534; font-size:14px; font-weight:600;">
               <?php echo htmlspecialchars($msg); ?>
             </div>
           <?php endif; ?>
 
           <?php if ($error): ?>
-            <div class="error-message" style="margin-bottom: 16px;">
+            <div class="error-message" style="margin-bottom:16px;">
               <?php echo htmlspecialchars($error); ?>
             </div>
           <?php endif; ?>
 
-          <div class="feature-card" style="margin-top:16px;">
+          <div class="feature-card form-card" style="margin-top:16px;">
             <h3>Add Vaccine</h3>
             <form method="post">
-              <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+              <div class="form-grid">
                 <input class="form-field" name="vaccine_name" placeholder="Vaccine Name" value="<?php echo htmlspecialchars($_POST["vaccine_name"] ?? ""); ?>" required>
                 <input class="form-field" type="number" min="0" step="0.01" name="price" placeholder="Price" value="<?php echo htmlspecialchars($_POST["price"] ?? ""); ?>" required>
                 <div class="age-input-group">
@@ -212,17 +207,17 @@ $listStmt = sqlsrv_query($conn, $listSql, $params);
                 <textarea class="form-field textarea-field" name="preparation_notes" placeholder="Preparation Notes"><?php echo htmlspecialchars($_POST["preparation_notes"] ?? ""); ?></textarea>
               </div>
               <p class="muted-text" style="margin-top:8px;">Set maximum age in months or years, or choose `No limit`.</p>
-              <div style="margin-top:12px;">
+              <div class="inline-actions" style="margin-top:12px;">
                 <button class="btn" type="submit" name="add_vaccine">Add Vaccine</button>
               </div>
             </form>
           </div>
 
-          <div class="feature-card" style="margin-top:24px;">
+          <div class="feature-card form-card" style="margin-top:24px;">
             <h3>Vaccines List</h3>
 
             <form method="get">
-              <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+              <div class="form-grid">
                 <input class="form-field" name="search_name" placeholder="Search by vaccine name" value="<?php echo htmlspecialchars($searchName); ?>">
                 <select class="form-field" name="gender_applicable">
                   <option value="">All Genders</option>
@@ -249,41 +244,43 @@ $listStmt = sqlsrv_query($conn, $listSql, $params);
                   </select>
                 </div>
               </div>
-              <div style="margin-top:12px;">
+              <div class="inline-actions" style="margin-top:12px;">
                 <button class="btn" type="submit">Search</button>
-                <a class="btn small-btn" href="admin_vaccines.php" style="margin-left:8px;">Reset</a>
+                <a class="btn small-btn" href="admin_vaccines.php">Reset</a>
               </div>
             </form>
 
-            <table border="1" cellpadding="10" style="width:100%; background:white; border-radius:12px; overflow:hidden;">
-              <tr>
-                <th>ID</th><th>Vaccine</th><th>Price</th><th>Age Range</th><th>Gender</th><th>Preparation Notes</th><th>Action</th>
-              </tr>
-              <?php if ($listStmt && sqlsrv_has_rows($listStmt)): ?>
-                <?php while ($row = sqlsrv_fetch_array($listStmt, SQLSRV_FETCH_ASSOC)): ?>
-                  <tr>
-                    <td><?php echo (int)$row["vaccine_id"]; ?></td>
-                    <td><?php echo htmlspecialchars($row["vaccine_name"] ?? ""); ?></td>
-                    <td>Tk <?php echo number_format((float)($row["price"] ?? 0), 2); ?></td>
-                    <td><?php echo htmlspecialchars(vaccine_age_label($row)); ?></td>
-                    <td><?php echo htmlspecialchars($row["gender_applicable"] ?? "Both"); ?></td>
-                    <td><?php echo nl2br(htmlspecialchars($row["preparation_notes"] ?? "No preparation notes added.")); ?></td>
-                    <td>
-                      <form method="post" style="display:inline;">
-                        <input type="hidden" name="vaccine_id" value="<?php echo (int)$row["vaccine_id"]; ?>">
-                        <button class="btn small-btn" type="submit" name="delete_vaccine" onclick="return confirm('Delete this vaccine?');">
-                          Delete
-                        </button>
-                      </form>
-                    </td>
-                  </tr>
-                <?php endwhile; ?>
-              <?php else: ?>
+            <div class="table-wrap">
+              <table border="1" cellpadding="10" style="width:100%; background:white; border-radius:12px; overflow:hidden;">
                 <tr>
-                  <td colspan="7">No vaccines found for the current filters.</td>
+                  <th>ID</th><th>Vaccine</th><th>Price</th><th>Age Range</th><th>Gender</th><th>Preparation Notes</th><th>Action</th>
                 </tr>
-              <?php endif; ?>
-            </table>
+                <?php if ($listStmt && sqlsrv_has_rows($listStmt)): ?>
+                  <?php while ($row = sqlsrv_fetch_array($listStmt, SQLSRV_FETCH_ASSOC)): ?>
+                    <tr>
+                      <td><?php echo (int)$row["vaccine_id"]; ?></td>
+                      <td><?php echo htmlspecialchars($row["vaccine_name"] ?? ""); ?></td>
+                      <td>Tk <?php echo number_format((float)($row["price"] ?? 0), 2); ?></td>
+                      <td><?php echo htmlspecialchars(vaccine_age_label($row)); ?></td>
+                      <td><?php echo htmlspecialchars($row["gender_applicable"] ?? "Both"); ?></td>
+                      <td><?php echo nl2br(htmlspecialchars($row["preparation_notes"] ?? "No preparation notes added.")); ?></td>
+                      <td>
+                        <form method="post" style="display:inline;">
+                          <input type="hidden" name="vaccine_id" value="<?php echo (int)$row["vaccine_id"]; ?>">
+                          <button class="btn small-btn" type="submit" name="delete_vaccine" onclick="return confirm('Delete this vaccine?');">
+                            Delete
+                          </button>
+                        </form>
+                      </td>
+                    </tr>
+                  <?php endwhile; ?>
+                <?php else: ?>
+                  <tr>
+                    <td colspan="7">No vaccines found for the current filters.</td>
+                  </tr>
+                <?php endif; ?>
+              </table>
+            </div>
           </div>
       </div>
   </div>

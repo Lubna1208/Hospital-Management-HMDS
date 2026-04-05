@@ -124,6 +124,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && (isset($_POST["generate_bill"]) || 
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Vaccine Details - PISD</title>
 <link rel="stylesheet" href="assets/patient.css">
 </head>
@@ -131,7 +132,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && (isset($_POST["generate_bill"]) || 
 <div class="container">
 
 <nav class="nav">
-    <div class="logo">🏥</div>
+    <div class="logo">Hospital</div>
     <div class="actions">
         <span class="user-name"><?php echo htmlspecialchars($_SESSION["user_name"] ?? "Patient"); ?></span>
         <a class="btn" href="vaccines.php">Back</a>
@@ -139,8 +140,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && (isset($_POST["generate_bill"]) || 
     </div>
 </nav>
 
-<div style="display:flex; gap:32px; margin-top:32px;">
-    <div style="width:280px; background:white; padding:24px; border-radius:16px; box-shadow:0 8px 24px rgba(10,44,62,.08);">
+<div class="layout-grid">
+    <div class="sidebar-card" style="width:280px;">
         <h3 style="margin-bottom:16px;">Vaccine Details</h3>
         <p style="margin-bottom:10px;"><strong>Name:</strong> <?php echo htmlspecialchars($vaccine["vaccine_name"] ?? ""); ?></p>
         <p style="margin-bottom:10px;"><strong>Price:</strong> Tk <?php echo number_format((float)($vaccine["price"] ?? 0), 2); ?></p>
@@ -150,14 +151,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && (isset($_POST["generate_bill"]) || 
         <p><strong>Preparation Notes:</strong> <?php echo htmlspecialchars($vaccine["preparation_notes"] ?? "No preparation notes added."); ?></p>
     </div>
 
-    <div style="flex:1;">
+    <div style="flex:1; min-width:0;">
         <h2 class="section-title">Patient Billing Form</h2>
 
         <?php if ($error): ?>
             <p class="error"><?php echo htmlspecialchars($error); ?></p>
         <?php endif; ?>
 
-        <div class="feature-card" style="text-align:left;">
+        <div class="feature-card form-card">
             <h3>Generate Vaccine Bill</h3>
             <form method="post">
                 <input type="hidden" name="vaccine_id" value="<?php echo (int)$vaccine["vaccine_id"]; ?>">
@@ -180,19 +181,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && (isset($_POST["generate_bill"]) || 
                 </select>
                 <input class="form-field" type="text" name="patient_phone" placeholder="Phone Number" value="<?php echo htmlspecialchars($patientPhone); ?>" required>
                 <input class="form-field" type="text" name="patient_address" placeholder="Address" value="<?php echo htmlspecialchars($patientAddress); ?>" required>
-                <button class="btn" type="submit" name="generate_bill">Prepare PDF Bill</button>
+                <div class="inline-actions">
+                    <button class="btn" type="submit" name="generate_bill">Prepare PDF Bill</button>
+                </div>
             </form>
 
             <?php if ($pdfReady): ?>
-                <div style="margin-top:20px; padding:16px; border-radius:16px; background:#eef7fb; border:1px solid rgba(10,44,62,.12);">
-                    <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
-                        <div style="width:42px; height:42px; border-radius:12px; background:#fff; display:grid; place-items:center; font-size:20px;">📄</div>
-                        <div>
-                            <strong>PDF Bill Ready</strong>
-                            <p style="margin-top:4px; color:#4a6572;">Review complete. Click below to download the billing PDF.</p>
-                        </div>
-                    </div>
-                    <form method="post" style="margin:0;">
+                <div class="notes-panel" style="margin-top:20px;">
+                    <strong>PDF Bill Ready</strong>
+                    <p style="margin-top:6px;">Review complete. Click below to download the billing PDF.</p>
+                    <form method="post" style="margin-top:12px;">
                         <input type="hidden" name="vaccine_id" value="<?php echo (int)$vaccine["vaccine_id"]; ?>">
                         <input type="hidden" name="patient_name" value="<?php echo htmlspecialchars($patientName); ?>">
                         <input type="hidden" name="patient_age" value="<?php echo htmlspecialchars($patientAge); ?>">

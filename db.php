@@ -1,12 +1,14 @@
 <?php
 
-$serverName = "TARIN\\SQLEXPRESS";
+$serverName = "DESKTOP-7OHN20R\\SQLEXPRESS";
 
 $connectionOptions = [
     "Database" => "HMDS",
-    //"Uid" => "hmds_user",
-    //"PWD" => "DataC2",
-    "CharacterSet" => "UTF-8"
+    "Uid" => "hmds_user",
+    "PWD" => "DataC2",
+    "CharacterSet" => "UTF-8",
+    "Encrypt" => false,
+    "TrustServerCertificate" => true
 ];
 
 $conn = sqlsrv_connect($serverName, $connectionOptions);
