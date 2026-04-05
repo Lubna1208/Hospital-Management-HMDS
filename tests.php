@@ -9,14 +9,13 @@ if (!isset($_SESSION["user_id"])) {
 
 $user_id = $_SESSION["user_id"];
 
-// Fetch tests (using vaccines table)
-$stmt = sqlsrv_query($conn, "SELECT * FROM vaccines");
+// ✅ Fetch from NEW tests table
+$stmt = sqlsrv_query($conn, "SELECT * FROM tests");
 
 if ($stmt === false) {
     die(print_r(sqlsrv_errors(), true));
 }
 
-// Check if data exists
 $hasData = false;
 ?>
 
@@ -25,7 +24,7 @@ $hasData = false;
 <head>
     <meta charset="UTF-8">
     <title>Available Tests</title>
-    <link rel="stylesheet" href="assets/patient.css">
+    <link rel="stylesheet" href="assets/patient.css?v=2">
 </head>
 <body>
 
@@ -47,9 +46,22 @@ $hasData = false;
             <?php $hasData = true; ?>
 
             <div class="feature-card">
-                <h3><?php echo htmlspecialchars($row['vaccine_name']); ?></h3>
+                <div class="test-image-card">
+                    <?php
+                    $testName = strtolower(str_replace(' ', '', $row['test_name']));
+                    $imagePath = "assets/" . $testName . ".jpg";
+                    if (file_exists($imagePath)) {
+                        echo '<img src="' . $imagePath . '" alt="Image for ' . htmlspecialchars($row['test_name']) . '">';
+                    } else {
+                        echo '<img src="assets/test-placeholder.svg" alt="Test image for ' . htmlspecialchars($row['test_name']) . '">';
+                    }
+                    ?>
+                </div>
+                <div class="feature-card-body">
+                    <!-- ✅ FIXED FIELD -->
+                    <h3><?php echo htmlspecialchars($row['test_name']); ?></h3>
 
-                <p><strong>Price:</strong> <?php echo $row['price']; ?> BDT</p>
+                    <p><strong>Price:</strong> <?php echo $row['price']; ?> BDT</p>
 
                 <p><strong>Age Range:</strong>
                     <?php echo $row['min_age']; ?> - <?php echo $row['max_age']; ?>
@@ -60,16 +72,17 @@ $hasData = false;
                 </p>
 
                 <form method="POST" action="apply_test.php">
-                    <input type="hidden" name="test_id" value="<?php echo $row['vaccine_id']; ?>">
+                    <!-- ✅ FIXED ID -->
+                    <input type="hidden" name="test_id" value="<?php echo $row['test_id']; ?>">
                     <button class="btn small-btn" type="submit">Select Test</button>
                 </form>
             </div>
+                </div>
 
         <?php endwhile; ?>
 
     </div>
 
-    <!-- If no data -->
     <?php if (!$hasData): ?>
         <p style="margin-top:20px; color:#555;">
             No tests available right now. Please add data in database.

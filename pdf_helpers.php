@@ -15,10 +15,20 @@ function pdf_prepare_text(string $text): string
     return str_replace(["\\", "(", ")"], ["\\\\", "\\(", "\\)"], $text);
 }
 
-function pdf_build_invoice(string $title, array $lines): string
+function pdf_build_invoice(string $title, array $lines, bool $showPaidSeal = false): string
 {
-    $content = "BT\n/F1 18 Tf\n50 780 Td\n(" . pdf_prepare_text($title) . ") Tj\n";
-    $content .= "/F1 12 Tf\n0 -28 Td\n";
+    $statusText = $showPaidSeal ? "Payment Status: PAID" : "Payment Status: PENDING";
+
+    $content = "BT\n/F1 24 Tf\n50 780 Td\n(" . pdf_prepare_text($title) . ") Tj\n";
+    $content .= "/F1 16 Tf\n0 -30 Td\n(" . pdf_prepare_text($statusText) . ") Tj\n";
+    $content .= "/F1 12 Tf\n0 -24 Td\n(" . pdf_prepare_text(str_repeat("=", 40)) . ") Tj\n";
+
+    if ($showPaidSeal) {
+        $content .= "/F1 20 Tf\n0 -28 Td\n(" . pdf_prepare_text("PAID") . ") Tj\n";
+        $content .= "/F1 12 Tf\n0 -30 Td\n";
+    } else {
+        $content .= "/F1 12 Tf\n0 -28 Td\n";
+    }
 
     foreach ($lines as $index => $line) {
         if ($index > 0) {
@@ -58,9 +68,9 @@ function pdf_build_invoice(string $title, array $lines): string
     return $pdf;
 }
 
-function pdf_output_invoice(string $filename, string $title, array $lines): void
+function pdf_output_invoice(string $filename, string $title, array $lines, bool $showPaidSeal = false): void
 {
-    $pdf = pdf_build_invoice($title, $lines);
+    $pdf = pdf_build_invoice($title, $lines, $showPaidSeal);
 
     header("Content-Type: application/pdf");
     header('Content-Disposition: attachment; filename="' . $filename . '"');

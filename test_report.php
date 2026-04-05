@@ -8,61 +8,116 @@ if (!isset($_SESSION["user_id"])) {
     exit;
 }
 
-$patientTestId = (int)($_GET["id"] ?? 0);
-if ($patientTestId <= 0) {
-    header("Location: my_tests.php");
-    exit;
-}
+$receiptId = (int)($_GET["id"] ?? 0);
+$all = isset($_GET["all"]);
 
 $userId = $_SESSION["user_id"];
 
-$sql = "
-SELECT 
-    pt.patient_test_id, 
-    pt.applied_date, 
-    pt.status, 
-    v.vaccine_name AS test_name, 
-    v.price,
-    p.PatientName,
-    p.Phone
+$testLines = [];
+$total = 0;
+$paymentStatus = "Pending";
+$receiptTitle = "HMDS Test Receipt";
+
+if ($all) {
+    $sql = "
+SELECT t.test_name, t.price, pt.status, pt.applied_date
 FROM patient_test pt
-JOIN vaccines v ON pt.test_id = v.vaccine_id
-JOIN patients p ON pt.patient_id = p.id
-WHERE pt.patient_test_id = ? AND pt.patient_id = ?
+JOIN tests t ON pt.test_id = t.test_id
+WHERE pt.patient_id = ?
 ";
 
-$stmt = sqlsrv_query($conn, $sql, [$patientTestId, $userId]);
-$row = $stmt ? sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC) : null;
+    $stmt = sqlsrv_query($conn, $sql, [$userId]);
+    if ($stmt === false) {
+        die(print_r(sqlsrv_errors(), true));
+    }
 
-if (!$row) {
-    header("Location: my_tests.php");
-    exit;
+    $allPaid = true;
+    while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+        $testLines[] = "- " . $row["test_name"] . " (BDT " . $row["price"] . ")";
+        $total += $row["price"];
+        if (strtolower($row["status"]) === "pending") {
+            $allPaid = false;
+        }
+    }
+
+    if (empty($testLines)) {
+        header("Location: my_tests.php");
+        exit;
+    }
+
+    $paymentStatus = $allPaid ? "Paid" : "Pending";
+    $receiptTitle = "HMDS Combined Test Receipt";
+} else {
+    if ($receiptId <= 0) {
+        header("Location: my_tests.php");
+        exit;
+    }
+
+    // ✅ Get receipt info
+    $sqlReceipt = "
+SELECT * FROM test_receipts 
+WHERE receipt_id = ? AND patient_id = ?
+";
+
+    $stmtReceipt = sqlsrv_query($conn, $sqlReceipt, [$receiptId, $userId]);
+    $receipt = sqlsrv_fetch_array($stmtReceipt, SQLSRV_FETCH_ASSOC);
+
+    if (!$receipt) {
+        header("Location: my_tests.php");
+        exit;
+    }
+
+    $paymentStatus = $receipt["payment_status"];
+
+    // ✅ Get ALL tests under this receipt
+    $sql = "
+SELECT t.test_name, t.price, pt.applied_date
+FROM patient_test pt
+JOIN tests t ON pt.test_id = t.test_id
+WHERE pt.receipt_id = ?
+";
+
+    $stmt = sqlsrv_query($conn, $sql, [$receiptId]);
+    if ($stmt === false) {
+        die(print_r(sqlsrv_errors(), true));
+    }
+
+    while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+        $testLines[] = "- " . $row["test_name"] . " (BDT " . $row["price"] . ")";
+        $total += $row["price"];
+    }
 }
 
-$appliedDate = $row["applied_date"] instanceof DateTime 
-    ? $row["applied_date"]->format("Y-m-d") 
-    : "N/A";
+// ✅ Get patient info
+$sqlPatient = "SELECT PatientName, Phone FROM patients WHERE id = ?";
+$stmtPatient = sqlsrv_query($conn, $sqlPatient, [$userId]);
+$patient = sqlsrv_fetch_array($stmtPatient, SQLSRV_FETCH_ASSOC);
 
-$filename = "test-receipt-" . $patientTestId . ".pdf";
-
+// ✅ Build PDF content
 $lines = [
     "Date: " . date("Y-m-d H:i"),
-    "Receipt ID: " . $patientTestId,
+    "Receipt ID: " . ($all ? "ALL" : $receiptId),
     "",
     "Patient Information",
-    "Name: " . ($row["PatientName"] ?? "N/A"),
-    "Phone: " . ($row["Phone"] ?? "N/A"),
+    "Name: " . ($patient["PatientName"] ?? "N/A"),
+    "Phone: " . ($patient["Phone"] ?? "N/A"),
     "",
-    "Test Information",
-    "Test Name: " . ($row["test_name"] ?? "N/A"),
-    "Applied Date: " . $appliedDate,
-    "Status: " . ($row["status"] ?? "N/A"),
-    "",
-    "Total Billed Amount: BDT " . number_format((float)($row["price"] ?? 0), 2)
+    "Tests:"
 ];
 
-// Determine if we should show the "PAID" seal based on user request (always true or based on status)
-$showPaidSeal = true;
+// Add test list
+foreach ($testLines as $line) {
+    $lines[] = $line;
+}
 
-// Open in new tab (inline), and show PAID seal
-pdf_output_invoice($filename, "HMDS Test Receipt", $lines, true, $showPaidSeal);
+$lines[] = "";
+$lines[] = "Total Amount: BDT " . number_format($total, 2);
+
+// ✅ Show PAID seal only if paid
+$showPaidSeal = (strtolower($paymentStatus) === "paid");
+
+$filename = $all ? "test-receipt-all.pdf" : "test-receipt-" . $receiptId . ".pdf";
+
+// Generate PDF
+pdf_output_invoice($filename, $receiptTitle, $lines, $showPaidSeal);
+?>
